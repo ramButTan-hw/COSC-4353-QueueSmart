@@ -1,14 +1,10 @@
-/* Admin-only UI simulation. Notification delivery follows the team's role-based API. */
+/* Admin UI backed by the shared same-browser demo store. */
 (function () {
   'use strict';
-  window.currentUser = { role: 'staff' };
+  if (!window.currentUser) return;
   initNotifications();
-  const services = [
-    { id: 1, name: 'Password Reset', description: 'Account access and password recovery.', duration: 10, priority: 'high', open: true, queue: [{id:1,name:'Alex Morgan'},{id:2,name:'Jordan Lee'},{id:3,name:'Taylor Chen'}] },
-    { id: 2, name: 'Wi-Fi / Network', description: 'Campus Wi-Fi and device connectivity.', duration: 15, priority: 'medium', open: true, queue: [{id:4,name:'Sam Rivera'},{id:5,name:'Casey Park'}] },
-    { id: 3, name: 'Printing', description: 'Printing setup, credits, and troubleshooting.', duration: 5, priority: 'low', open: false, queue: [{id:6,name:'Jamie Brooks'}] }
-  ];
-  let selected = 1, nextId = 4, feedbackTimer;
+  let services = QueueStore.read().services;
+  let selected = 1, feedbackTimer;
   const main = document.getElementById('main');
   const dialog = document.getElementById('service-dialog');
   const form = document.getElementById('service-form');
@@ -30,7 +26,7 @@
     main.innerHTML = `<div class="page-heading"><div><h1>Queue management</h1><p class="muted">Keep students moving, one service at a time.</p></div></div><div class="queue-tools"><label for="queue-service">Service</label><select id="queue-service">${services.map(item=>`<option value="${item.id}" ${item.id===s.id?'selected':''}>${escape(item.name)}</option>`).join('')}</select>${status(s)}</div>
       <section class="panel"><div class="panel-title"><div><h2>${escape(s.name)}</h2><p class="muted">${s.queue.length} waiting · ${s.duration} min per student</p></div><div class="actions">${toggleButton(s)}<button class="primary" data-action="serve" data-id="${s.id}" ${!s.open || !s.queue.length?'disabled':''}>Serve next user</button></div></div>
       ${!s.open ? '<p class="muted" style="padding:16px 24px">Open this queue to serve the next student.</p>' : ''}
-      ${s.queue.length ? `<div class="table-scroll"><table><thead><tr><th>Position</th><th>Student</th><th>Reorder</th><th>Actions</th></tr></thead><tbody>${s.queue.map((user,i)=>`<tr><td><span class="position">${i+1}</span></td><td><strong>${escape(user.name)}</strong>${i===0?'<small>Next in line</small>':''}</td><td><div class="actions"><button aria-label="Move ${escape(user.name)} up" data-action="up" data-id="${s.id}" data-user="${user.id}" ${i===0?'disabled':''}>↑</button><button aria-label="Move ${escape(user.name)} down" data-action="down" data-id="${s.id}" data-user="${user.id}" ${i===s.queue.length-1?'disabled':''}>↓</button></div></td><td><button class="danger" data-action="remove" data-id="${s.id}" data-user="${user.id}">Remove</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No students waiting.<br>This queue is all caught up.</div>'}</section>`;
+      ${s.queue.length ? `<div class="table-scroll"><table><thead><tr><th>Position</th><th>Student</th><th>Reorder</th><th>Actions</th></tr></thead><tbody>${s.queue.map((user,i)=>`<tr><td><span class="position">${i+1}</span></td><td><strong>${escape(user.name)}</strong>${i===0?'<small>Next in line</small>':''}</td><td><div class="actions"><button aria-label="Move ${escape(user.name)} up" data-action="up" data-id="${s.id}" data-user="${escape(user.id)}" ${i===0?'disabled':''}>↑</button><button aria-label="Move ${escape(user.name)} down" data-action="down" data-id="${s.id}" data-user="${escape(user.id)}" ${i===s.queue.length-1?'disabled':''}>↓</button></div></td><td><button class="danger" data-action="remove" data-id="${s.id}" data-user="${escape(user.id)}">Remove</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No students waiting.<br>This queue is all caught up.</div>'}</section>`;
   }
   function openForm(s) {
     form.reset(); document.getElementById('service-id').value = s ? s.id : '';
@@ -42,30 +38,14 @@
     form.querySelectorAll('input,textarea,select').forEach(el=>el.setCustomValidity(''));
     dialog.showModal(); document.getElementById('service-name').focus();
   }
-  function announcePositions(s, before) {
-    s.queue.forEach((user,index)=>{ if (before.findIndex(old=>old.id===user.id)!==index) notify('student', `You moved to position ${index+1} in ${s.name}`, 'info'); });
-    if (s.open && s.queue.length && before[0]?.id !== s.queue[0].id) notify('student', `You're next for ${s.name}, please head to the help desk`, 'warning');
-  }
-  main.addEventListener('change', event=>{ if(event.target.id==='queue-service'){selected=Number(event.target.value);render();} });
-  main.addEventListener('click', event=>{
-    const button = event.target.closest('button[data-action]'); if(!button || button.disabled) return;
-    const action = button.dataset.action, s = services.find(s=>s.id===Number(button.dataset.id));
-    if(action==='create'){openForm();return;} if(!s)return;
-    if(action==='edit'){openForm(s);return;}
-    if(action==='queue'){selected=s.id;location.hash='queues';return;}
-    if(action==='toggle'){
-      s.open=!s.open;
-      if(s.queue.length) { notify('student', `${s.name} queue is now ${s.open?'open':'closed'}`, s.open?'info':'warning'); if(s.open)notify('student', `You're next for ${s.name}, please head to the help desk`, 'warning'); }
-      feedback(`${s.name} queue ${s.open?'opened':'closed'}.`);
-    } else {
-      const before=s.queue.slice(), index=s.queue.findIndex(u=>u.id===Number(button.dataset.user));
-      if(action==='serve'){if(!s.open||!s.queue.length)return;const user=s.queue.shift();notify('student', `You've been served for ${s.name}`, 'success');feedback(`${user.name} served.`);}
-      else if(action==='remove' && index>=0){const [user]=s.queue.splice(index,1);notify('student', `You were removed from the ${s.name} queue`, 'error');feedback(`${user.name} removed from queue.`);}
-      else if((action==='up'||action==='down') && index>=0){const target=index+(action==='up'?-1:1);if(target<0||target>=s.queue.length)return;[s.queue[index],s.queue[target]]=[s.queue[target],s.queue[index]];feedback('Queue order updated.');}
-      else return;
-      announcePositions(s,before);
-    }
-    render();
+  window.addEventListener('queue-change',()=>{services=QueueStore.read().services;render();});
+  main.addEventListener('change',e=>{if(e.target.id==='queue-service'){selected=Number(e.target.value);render();}});
+  main.addEventListener('click',e=>{
+    const button=e.target.closest('button[data-action]');if(!button||button.disabled)return;
+    const action=button.dataset.action,s=services.find(s=>s.id===Number(button.dataset.id));
+    if(action==='create'){openForm();return;}if(!s)return;
+    if(action==='edit'){openForm(s);return;}if(action==='queue'){selected=s.id;location.hash='queues';return;}
+    try{QueueStore.change(s.id,action,button.dataset.user);feedback('Queue updated.');}catch(error){feedback(error.message);}
   });
   form.addEventListener('input',event=>event.target.setCustomValidity?.(''));
   form.addEventListener('submit',event=>{
@@ -79,7 +59,7 @@
     if(!form.reportValidity())return;
     const values={name:name.value.trim(),description:description.value.trim(),duration:Number(duration.value),priority:document.getElementById('priority').value};
     const existing=services.find(s=>s.id===Number(document.getElementById('service-id').value));
-    if(existing)Object.assign(existing,values);else services.push({id:nextId++,...values,open:false,queue:[]});
+    QueueStore.saveService(values,existing?.id);
     dialog.close();render();feedback(existing?'Service updated.':'Service created. Open its queue when ready.');
   });
   document.getElementById('cancel').onclick=()=>dialog.close();document.getElementById('dismiss').onclick=()=>dialog.close();

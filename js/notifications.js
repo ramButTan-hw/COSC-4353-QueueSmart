@@ -4,6 +4,7 @@
  * Public API (everything else is private):
  *   initNotifications({ getRole })  Render the bell into #bell-mount. getRole() must return
  *                                   'student' or 'staff'. Defaults to window.currentUser.role.
+ *   notify(role, message, type, { recipientId }?) supports an optional student recipient.
  *   notify(role, message, type)     Add a notification for a role and show a toast if that role
  *                                   is the one currently signed in.
  *                                   type: 'info' | 'success' | 'warning' | 'error'
@@ -15,7 +16,7 @@
 
   var ROLES = ['student', 'staff'];
   var TYPES = ['info', 'success', 'warning', 'error'];
-  var STORAGE_KEY = 'queuesmart.notifications';
+  var STORAGE_KEY = 'queuesmart.notifications.v2';
   var MAX_STORED = 50;
   var TOAST_MS = 4500;
 
@@ -27,7 +28,6 @@
   };
 
   var items = load();
-  var nextId = items.reduce(function (m, n) { return Math.max(m, n.id); }, 0) + 1;
   var getRole = function () { return window.currentUser && window.currentUser.role; };
   var els = {};
   var mounted = false;
@@ -47,24 +47,27 @@
 
   /* ---------- data ---------- */
 
+  function visible(n) { return n.role === getRole() && (!n.recipientId || n.recipientId === (window.currentUser && window.currentUser.id)); }
+
   function forRole(role) {
-    return items.filter(function (n) { return n.role === role; });
+    return items.filter(function (n) { return n.role === role && visible(n); });
   }
 
   function unreadCount(role) {
     return forRole(role).filter(function (n) { return !n.read; }).length;
   }
 
-  function notify(role, message, type) {
+  function notify(role, message, type, options) {
+    items = load();
     if (ROLES.indexOf(role) === -1) { console.warn('notify: unknown role', role); return null; }
     if (typeof message !== 'string' || !message.trim()) { console.warn('notify: message is required'); return null; }
     if (TYPES.indexOf(type) === -1) type = 'info';
 
-    var n = { id: nextId++, role: role, message: message.trim(), type: type, ts: Date.now(), read: false };
+    var n = { id: crypto.randomUUID(), recipientId: options && options.recipientId, role: role, message: message.trim(), type: type, ts: Date.now(), read: false };
     items.unshift(n);
     // keep only the newest MAX_STORED per role
     ROLES.forEach(function (r) {
-      var own = forRole(r);
+      var own = items.filter(function (item) { return item.role === r && item.recipientId === n.recipientId; });
       if (own.length > MAX_STORED) {
         var drop = own.slice(MAX_STORED).map(function (x) { return x.id; });
         items = items.filter(function (x) { return drop.indexOf(x.id) === -1; });
@@ -72,24 +75,28 @@
     });
     save();
     render();
-    if (role === getRole()) toast(n);
+    if (visible(n)) toast(n);
+    window.dispatchEvent(new Event("notifications-change"));
     return n;
   }
 
   function markRead(id) {
-    items.forEach(function (n) { if (n.id === id) n.read = true; });
+    items = load();
+    items.forEach(function (n) { if (n.id === id && visible(n)) n.read = true; });
     save(); render();
   }
 
   function markAllRead() {
+    items = load();
     var role = getRole();
-    items.forEach(function (n) { if (n.role === role) n.read = true; });
+    items.forEach(function (n) { if (visible(n)) n.read = true; });
     save(); render();
   }
 
   function clear(all) {
+    items = load();
     var role = getRole();
-    items = all ? [] : items.filter(function (n) { return n.role !== role; });
+    items = all ? [] : items.filter(function (n) { return !visible(n); });
     save(); render();
   }
 
@@ -260,7 +267,13 @@
     setInterval(function () { if (mounted && !els.panel.hidden) render(); }, 30000);
   }
 
+  window.addEventListener('storage', function (e) {
+    if (e.key !== STORAGE_KEY) return;
+    var previous = items; items = load(); render();
+    items.filter(function(n){return visible(n) && !previous.some(function(old){return old.id===n.id;});}).forEach(toast);
+    window.dispatchEvent(new Event('notifications-change'));
+  });
   window.notify = notify;
   window.initNotifications = init;
-  window.Notifications = { refresh: render, markAllRead: markAllRead, clear: function () { clear(true); }, all: function () { return items.slice(); } };
+  window.Notifications = { refresh: render, markAllRead: markAllRead, clear: function () { clear(true); }, all: function () { return load().filter(visible); } };
 })();

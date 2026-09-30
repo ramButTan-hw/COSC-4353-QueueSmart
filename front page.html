@@ -251,13 +251,14 @@
         <div class="error-message" id="loginPasswordError">Password must be at least 6 characters.</div>
       </div>
 
+      <div class="form-group"><label for="demo-role">Demo role</label><select id="demo-role" style="width:100%;padding:12px;font:inherit"><option value="student">Student</option><option value="staff">Admin / Staff</option></select></div>
       <button type="submit" class="btn btn-primary btn-block">
         <i class="fas fa-sign-in-alt"></i> Log in
       </button>
     </form>
 
     <p class="register-link">
-      Don't have an account? <a href="#">Register</a>
+      UI demo: use any valid email and a password of at least 6 characters. No account is created and the password is not stored.
     </p>
   </div>
 </div>
@@ -287,7 +288,10 @@
     }
 
     if (valid) {
-      alert('Login successful (mock). Redirecting to dashboard...');
+      const role = document.getElementById('demo-role').value;
+      const address = email.value.trim().toLowerCase();
+      sessionStorage.setItem('queuesmart.session', JSON.stringify({id:address, name:address.split('@')[0], role}));
+      location.href = role === 'staff' ? 'admin.html' : 'user-dashboard.html';
      
     }
   });
