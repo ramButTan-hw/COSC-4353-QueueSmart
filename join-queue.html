@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Join Queue | QueueSmart</title>
+  <link rel="stylesheet" href="css/notifications.css">
+  <link rel="stylesheet" href="css/user.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="user-dashboard.html">QueueSmart</a>
+    <nav class="nav" aria-label="Student navigation">
+      <a class="" href="user-dashboard.html">Dashboard</a>
+      <a class="active" href="join-queue.html">Join Queue</a>
+      <a class="" href="queue-status.html">Queue Status</a>
+      <a class="" href="history.html">History</a>
+    </nav>
+    <div class="user-area">
+      <span class="user-label">Student</span>
+      <div id="bell-mount"></div>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="page-heading">
+    <div>
+      <h1>Join Queue</h1>
+      <p>Select a service and review the estimated wait before joining.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <section class="card">
+      <div class="field">
+        <label for="service-select">Service</label>
+        <select id="service-select" required aria-required="true"></select>
+      </div>
+
+      <div class="wait-box">
+        <div class="stat-label">Estimated Wait Time</div>
+        <div class="wait-number" id="estimated-wait">Select a service</div>
+        <div class="muted" id="people-ahead"></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="join-btn" disabled>Join Queue</button>
+        <button class="btn btn-danger" id="leave-btn" hidden>Leave Current Queue</button>
+      </div>
+    </section>
+
+    <aside class="card">
+      <h2>How it works</h2>
+      <p class="muted">Choose the service you need. QueueSmart displays the current estimated wait time before you join.</p>
+      <p class="muted">After joining, use the Queue Status page to view your position and status updates.</p>
+    </aside>
+  </div>
+</main>
+
+<script>
+  // Temporary mock user for Assignment 2 until authentication is connected.
+  window.currentUser = { role: 'student', name: 'Student' };
+</script>
+<script src="js/notifications.js"></script>
+<script>initNotifications();</script>
+<script src="js/user.js"></script>
+</body>
+</html>

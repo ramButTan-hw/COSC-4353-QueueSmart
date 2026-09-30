@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Queue Status | QueueSmart</title>
+  <link rel="stylesheet" href="css/notifications.css">
+  <link rel="stylesheet" href="css/user.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="user-dashboard.html">QueueSmart</a>
+    <nav class="nav" aria-label="Student navigation">
+      <a class="" href="user-dashboard.html">Dashboard</a>
+      <a class="" href="join-queue.html">Join Queue</a>
+      <a class="active" href="queue-status.html">Queue Status</a>
+      <a class="" href="history.html">History</a>
+    </nav>
+    <div class="user-area">
+      <span class="user-label">Student</span>
+      <div id="bell-mount"></div>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="page-heading">
+    <div>
+      <h1>Queue Status</h1>
+      <p>Track your current position, estimated wait time, and service status.</p>
+    </div>
+  </div>
+  <div id="queue-status-content"></div>
+</main>
+
+<script>
+  // Temporary mock user for Assignment 2 until authentication is connected.
+  window.currentUser = { role: 'student', name: 'Student' };
+</script>
+<script src="js/notifications.js"></script>
+<script>initNotifications();</script>
+<script src="js/user.js"></script>
+</body>
+</html>
