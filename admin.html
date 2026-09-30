@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QueueSmart · Admin</title>
+  <link rel="stylesheet" href="css/notifications.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <aside><a class="brand" href="admin.html">⇄ <span>QueueSmart</span></a><p class="eyebrow">ADMIN WORKSPACE</p>
+    <nav aria-label="Admin navigation"><a href="#dashboard">Overview</a><a href="#services">Services</a><a href="#queues">Queues</a></nav>
+    <div class="aside-note">IT Help Desk<br><span>Queue management</span></div>
+  </aside>
+  <div class="workspace"><header><span>Administration</span><div class="header-actions"><span class="demo">UI simulation</span><div id="bell-mount"></div><span class="avatar" aria-label="Staff account">AD</span></div></header>
+    <main id="main"></main><p id="feedback" role="status" aria-live="polite"></p>
+  </div>
+  <dialog id="service-dialog"><form id="service-form"><div class="section-heading"><h2 id="form-title">Create service</h2><button type="button" id="dismiss" class="quiet" aria-label="Close service form">×</button></div>
+    <input type="hidden" id="service-id">
+    <label for="service-name">Service name (required)</label><input id="service-name" type="text" required maxlength="100" aria-describedby="name-hint" placeholder="e.g. Password Reset"><small id="name-hint">Maximum 100 characters</small>
+    <label for="description">Description (required)</label><textarea id="description" required rows="3" placeholder="What can students get help with?"></textarea>
+    <div class="form-row"><div><label for="duration">Expected duration (minutes, required)</label><input id="duration" type="number" required min="1" step="1" aria-describedby="duration-hint"><small id="duration-hint">Enter a whole number of at least 1.</small></div><div><label for="priority">Priority level</label><select id="priority" required><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div></div>
+    <div class="form-actions"><button type="button" id="cancel">Cancel</button><button class="primary" type="submit">Save service</button></div>
+  </form></dialog>
+  <script src="js/notifications.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
