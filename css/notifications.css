@@ -1,0 +1,98 @@
+/* QueueSmart – in-app notifications (bell, panel, toasts). Loaded with js/notifications.js. */
+
+.qs-bellwrap, .qs-toasts {
+  --qs-accent: #6366F1;
+  --qs-surface: #FFFFFF;
+  --qs-ink: #1E1B3C;
+  --qs-muted: #6B7280;
+  --qs-line: #E6E5F5;
+  --qs-hover: #F3F3F8;
+  --qs-unread: #E3E2FB;
+  --qs-info: #4F46E5;
+  --qs-success: #15803D;
+  --qs-warning: #92620A;
+  --qs-error: #B91C1C;
+  --qs-shadow: 0 1px 2px rgba(30, 27, 75, .04), 0 8px 24px rgba(79, 70, 229, .12);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+/* type colors (used by icons in both the panel and toasts) */
+.qs-info { --qs-type: var(--qs-info); }
+.qs-success { --qs-type: var(--qs-success); }
+.qs-warning { --qs-type: var(--qs-warning); }
+.qs-error { --qs-type: var(--qs-error); }
+
+/* bell */
+.qs-bellwrap { position: relative; }
+.qs-bell {
+  position: relative; display: grid; place-items: center; width: 42px; height: 42px;
+  border: 1px solid #DCDCDF; border-radius: 50%; background: #EFEFF1; color: var(--qs-ink); cursor: pointer;
+}
+.qs-bell:hover { background: #E4E4E7; }
+.qs-bell:focus-visible, .qs-link:focus-visible, .qs-item-btn:focus-visible, .qs-toast-x:focus-visible {
+  outline: 3px solid var(--qs-ink); outline-offset: 2px;
+}
+.qs-badge {
+  position: absolute; top: 3px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--qs-error); color: #fff; font-size: 11px; font-weight: 600;
+  line-height: 18px; text-align: center; box-sizing: border-box;
+}
+.qs-badge[hidden] { display: none; }
+
+/* panel */
+.qs-panel {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; width: min(380px, calc(100vw - 32px));
+  max-height: min(480px, 70vh); display: flex; flex-direction: column; overflow: hidden;
+  background: var(--qs-surface); color: var(--qs-ink); border: 1px solid var(--qs-line);
+  border-radius: 16px; box-shadow: var(--qs-shadow);
+}
+.qs-panel[hidden] { display: none; }
+.qs-panel-h {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--qs-line);
+}
+.qs-panel-title { margin: 0; font: 600 17px/1.2 'Poppins', system-ui, sans-serif; }
+.qs-panel-actions { display: flex; gap: 12px; }
+.qs-link {
+  border: 0; background: none; padding: 2px 0; font: 500 13px/1.2 inherit; color: var(--qs-accent); cursor: pointer;
+}
+.qs-link:hover:not(:disabled) { text-decoration: underline; }
+.qs-link:disabled { color: var(--qs-muted); cursor: default; opacity: .6; }
+
+.qs-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+.qs-empty { padding: 32px 16px; text-align: center; color: var(--qs-muted); font-size: 14px; }
+.qs-item { border-bottom: 1px solid var(--qs-line); }
+.qs-item:last-child { border-bottom: 0; }
+.qs-item-btn {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 12px 16px;
+  border: 0; background: none; color: inherit; text-align: left; font: inherit; cursor: pointer;
+}
+.qs-item-btn:hover { background: var(--qs-hover); }
+.qs-unread .qs-item-btn { background: var(--qs-unread); }
+.qs-item-btn svg, .qs-toast > svg { flex: none; margin-top: 1px; color: var(--qs-type); }
+.qs-item-body { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.qs-item-msg { font-size: 14px; font-weight: 400; line-height: 1.4; overflow-wrap: anywhere; }
+.qs-item-time { font-size: 12px; color: var(--qs-muted); }
+.qs-unread .qs-item-msg { font-weight: 700; }
+.qs-dot { flex: none; width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--qs-accent); }
+
+/* toasts */
+.qs-toasts {
+  position: fixed; z-index: 50; left: 50%; transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+  display: grid; gap: 8px; width: min(440px, calc(100vw - 32px)); pointer-events: none;
+}
+.qs-toast {
+  pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; padding: 12px 12px 12px 16px;
+  background: var(--qs-surface); color: var(--qs-ink); border: 1px solid var(--qs-line);
+  border-left: 5px solid var(--qs-type); border-radius: 12px; box-shadow: var(--qs-shadow);
+  font-size: 14px; line-height: 1.4; animation: qs-in .18s ease-out;
+}
+.qs-toast-msg { flex: 1; overflow-wrap: anywhere; }
+.qs-toast-x {
+  flex: none; width: 24px; height: 24px; border: 0; border-radius: 50%; background: none;
+  color: var(--qs-muted); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.qs-toast-x:hover { background: var(--qs-hover); }
+@keyframes qs-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .qs-toast { animation: none; } }
