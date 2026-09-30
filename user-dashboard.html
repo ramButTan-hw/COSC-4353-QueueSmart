@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>User Dashboard | QueueSmart</title>
+  <link rel="stylesheet" href="css/notifications.css">
+  <link rel="stylesheet" href="css/user.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="user-dashboard.html">QueueSmart</a>
+    <nav class="nav" aria-label="Student navigation">
+      <a class="active" href="user-dashboard.html">Dashboard</a>
+      <a class="" href="join-queue.html">Join Queue</a>
+      <a class="" href="queue-status.html">Queue Status</a>
+      <a class="" href="history.html">History</a>
+    </nav>
+    <div class="user-area">
+      <span class="user-label">Student</span>
+      <div id="bell-mount"></div>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="page-heading">
+    <div>
+      <h1>User Dashboard</h1>
+      <p>See your current queue, available services, and recent notifications.</p>
+    </div>
+    <a class="btn btn-primary" href="join-queue.html">Join a Queue</a>
+  </div>
+
+  <section class="grid grid-3" aria-label="Current queue overview">
+    <div class="card">
+      <div class="stat-label">Current Queue</div>
+      <div class="stat-value" id="current-queue-status">Not in a queue</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">Position</div>
+      <div class="stat-value" id="current-position">—</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">Estimated Wait</div>
+      <div class="stat-value" id="current-wait">—</div>
+    </div>
+  </section>
+
+  <section class="grid grid-2" style="margin-top:18px">
+    <div class="card">
+      <h2>Active Services</h2>
+      <div id="dashboard-services" class="service-list"></div>
+    </div>
+    <div class="card">
+      <h2>Notification Summary</h2>
+      <div id="notification-summary"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Temporary mock user for Assignment 2 until authentication is connected.
+  window.currentUser = { role: 'student', name: 'Student' };
+</script>
+<script src="js/notifications.js"></script>
+<script>initNotifications();</script>
+<script src="js/user.js"></script>
+</body>
+</html>
