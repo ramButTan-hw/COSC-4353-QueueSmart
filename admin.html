@@ -17,13 +17,14 @@
   <dialog id="service-dialog"><form id="service-form"><div class="section-heading"><h2 id="form-title">Create service</h2><button type="button" id="dismiss" class="quiet" aria-label="Close service form">×</button></div>
     <input type="hidden" id="service-id">
     <label for="service-name">Service name (required)</label><input id="service-name" type="text" required maxlength="100" aria-describedby="name-hint" placeholder="e.g. Password Reset"><small id="name-hint">Maximum 100 characters</small>
-    <label for="description">Description (required)</label><textarea id="description" required rows="3" placeholder="What can students get help with?"></textarea>
-    <div class="form-row"><div><label for="duration">Expected duration (minutes, required)</label><input id="duration" type="number" required min="1" step="1" aria-describedby="duration-hint"><small id="duration-hint">Enter a whole number of at least 1.</small></div><div><label for="priority">Priority level</label><select id="priority" required><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div></div>
+    <label for="description">Description (required)</label><textarea id="description" required rows="3" maxlength="500" aria-describedby="description-hint" placeholder="What can students get help with?"></textarea><small id="description-hint">Maximum 500 characters</small>
+    <div class="form-row"><div><label for="duration">Expected duration (minutes, required)</label><input id="duration" type="number" required min="1" max="480" step="1" aria-describedby="duration-hint"><small id="duration-hint">Enter a whole number from 1 to 480.</small></div><div><label for="priority">Priority level</label><select id="priority" required><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div></div>
     <div class="form-actions"><button type="button" id="cancel">Cancel</button><button class="primary" type="submit">Save service</button></div>
   </form></dialog>
   <script src="js/session.js"></script>
   <script src="js/store.js"></script>
   <script src="js/notifications.js"></script>
+  <script src="js/validation.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>
