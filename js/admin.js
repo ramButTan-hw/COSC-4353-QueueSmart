@@ -51,11 +51,12 @@
   form.addEventListener('submit',event=>{
     event.preventDefault();
     const name=document.getElementById('service-name'), description=document.getElementById('description'), duration=document.getElementById('duration');
-    name.setCustomValidity(!name.value.trim() ? 'Enter a service name.' : name.value.length > 100 ? 'Service name must be 100 characters or fewer.' : '');
-    description.setCustomValidity(description.value.trim()?'':'Enter a description.');
+    const editingId=Number(document.getElementById('service-id').value)||undefined;
+    name.setCustomValidity(Validate.text(name.value,'a service name',100)||Validate.uniqueName(name.value,services,editingId));
+    description.setCustomValidity(Validate.text(description.value,'a description',500));
     const priority = document.getElementById('priority');
     priority.setCustomValidity(['low','medium','high'].includes(priority.value) ? '' : 'Choose low, medium, or high priority.');
-    duration.setCustomValidity(Number.isSafeInteger(Number(duration.value)) && Number(duration.value)>0 ? '' : 'Enter a positive whole number of minutes.');
+    duration.setCustomValidity(Validate.wholeNumber(duration.value,'minutes',1,480));
     if(!form.reportValidity())return;
     const values={name:name.value.trim(),description:description.value.trim(),duration:Number(duration.value),priority:document.getElementById('priority').value};
     const existing=services.find(s=>s.id===Number(document.getElementById('service-id').value));

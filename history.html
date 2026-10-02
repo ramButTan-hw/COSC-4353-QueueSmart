@@ -33,6 +33,12 @@
     </div>
   </div>
   <section class="card">
+    <form id="history-filter" novalidate style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:16px">
+      <div><label for="history-from">From</label><br><input type="date" id="history-from"></div>
+      <div><label for="history-to">To</label><br><input type="date" id="history-to"></div>
+      <button type="button" class="btn btn-secondary" id="history-clear">Clear</button>
+      <div id="history-filter-error" role="alert" class="small" style="flex-basis:100%;color:#b91c1c"></div>
+    </form>
     <div class="history-row" style="font-weight:700">
       <div>Service / Date</div>
       <div>Outcome</div>
@@ -45,6 +51,7 @@
 <script src="js/store.js"></script>
 <script src="js/notifications.js"></script>
 <script>initNotifications();</script>
+<script src="js/validation.js"></script>
 <script src="js/user.js"></script>
 </body>
 </html>
