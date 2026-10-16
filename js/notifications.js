@@ -1,5 +1,5 @@
 /*
- * QueueSmart – in-app notifications (Assignment 2, part 4)
+ * QueueSmart – A2 notification UI with A3 backend join/near-front notifications
  *
  * Public API (everything else is private):
  *   initNotifications({ getRole })  Render the bell into #bell-mount. getRole() must return
@@ -8,8 +8,8 @@
  *   notify(role, message, type)     Add a notification for a role and show a toast if that role
  *                                   is the one currently signed in.
  *                                   type: 'info' | 'success' | 'warning' | 'error'
- *   Notifications.refresh()         Re-render after login/logout or a role change.
- *   Notifications.clear()           Remove every stored notification (used by the test page).
+ *   Notifications.refresh()         Fetch backend notifications and re-render; returns a Promise.
+ *   Notifications.clear()           Clear notifications for the current user; returns a Promise.
  */
 (function () {
   'use strict';
@@ -28,6 +28,8 @@
   };
 
   var items = load();
+  var backendItems = [];
+  var refreshPending = null;
   var getRole = function () { return window.currentUser && window.currentUser.role; };
   var els = {};
   var mounted = false;
@@ -50,7 +52,7 @@
   function visible(n) { return n.role === getRole() && (!n.recipientId || n.recipientId === (window.currentUser && window.currentUser.id)); }
 
   function forRole(role) {
-    return items.filter(function (n) { return n.role === role && visible(n); });
+    return items.concat(backendItems).filter(function (n) { return n.role === role && visible(n); }).sort(function (a, b) { return b.ts - a.ts; });
   }
 
   function unreadCount(role) {
@@ -80,24 +82,48 @@
     return n;
   }
 
-  function markRead(id) {
+  async function markRead(id) {
+    if (backendItems.some(function (n) { return n.id === id; })) {
+      try { await QueueBackend.markRead(id); await refresh(); } catch (error) { report(error); }
+      return;
+    }
     items = load();
     items.forEach(function (n) { if (n.id === id && visible(n)) n.read = true; });
     save(); render();
+    window.dispatchEvent(new Event('notifications-change'));
   }
 
-  function markAllRead() {
+  async function markAllRead() {
+    try { if (getRole() === 'student') await QueueBackend.markAllRead(); } catch (error) { report(error); return; }
     items = load();
-    var role = getRole();
     items.forEach(function (n) { if (visible(n)) n.read = true; });
     save(); render();
+    await refresh().catch(report);
   }
 
-  function clear(all) {
+  async function clear(all) {
+    try { if (getRole() === 'student') await QueueBackend.clearNotifications(); } catch (error) { report(error); return; }
     items = load();
-    var role = getRole();
     items = all ? [] : items.filter(function (n) { return !visible(n); });
     save(); render();
+    await refresh().catch(report);
+  }
+
+  function report(error) { console.error(error); toast({ type: 'error', message: error.message }); }
+
+  function refresh() {
+    if (refreshPending) return refreshPending;
+    refreshPending = (async function () {
+      if (getRole() === 'student') {
+        var previous = backendItems;
+        backendItems = await QueueBackend.notifications();
+        backendItems.filter(function (n) { return !n.read && !previous.some(function (old) { return old.id === n.id; }); }).forEach(toast);
+      } else backendItems = [];
+      items = load();
+      render();
+      window.dispatchEvent(new Event('notifications-change'));
+    })().finally(function () { refreshPending = null; });
+    return refreshPending;
   }
 
   /* ---------- helpers ---------- */
@@ -263,6 +289,8 @@
     if (opts && typeof opts.getRole === 'function') getRole = opts.getRole;
     if (!mounted) mounted = build();
     render();
+    refresh().catch(report);
+    setInterval(function () { refresh().catch(report); }, 5000);
     // keep "2 min ago" labels fresh while the panel is open
     setInterval(function () { if (mounted && !els.panel.hidden) render(); }, 30000);
   }
@@ -275,5 +303,5 @@
   });
   window.notify = notify;
   window.initNotifications = init;
-  window.Notifications = { refresh: render, markAllRead: markAllRead, clear: function () { clear(true); }, all: function () { return load().filter(visible); } };
+  window.Notifications = { refresh: refresh, markAllRead: markAllRead, clear: function () { return clear(false); }, all: function () { items = load(); return forRole(getRole()); } };
 })();
