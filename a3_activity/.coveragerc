@@ -1,7 +1,0 @@
-[run]
-omit =
-    a3_activity/tests/*
-    a3_activity/.venv/*
-
-[report]
-show_missing = True
