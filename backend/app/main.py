@@ -1,0 +1,45 @@
+"""QueueSmart API entry point.
+
+Run from the backend/ folder:  uv run uvicorn app.main:app --reload --port 8001
+Interactive docs:              http://localhost:8001/docs
+"""
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from app import config
+from app.errors import ApiError, api_error_handler, http_error_handler, validation_error_handler
+from app.routers import auth
+from app.store import seed_demo_users
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    seed_demo_users()
+    yield
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="QueueSmart API", version="0.1.0", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.CORS_ORIGINS,
+        allow_methods=["*"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
+    app.add_exception_handler(ApiError, api_error_handler)
+    app.add_exception_handler(RequestValidationError, validation_error_handler)
+    app.add_exception_handler(StarletteHTTPException, http_error_handler)
+    app.include_router(auth.router)
+
+    @app.get("/health", tags=["meta"])
+    def health():
+        return {"status": "ok"}
+
+    return app
+
+
+app = create_app()
