@@ -46,7 +46,9 @@
         events.push({ type: { serve: 'served', remove: 'removed', leave: 'left' }[action], participationId: user.participationId });
       } else return;
     }
-    s.queue.forEach((user, index) => {
+    // Staff sends the resulting positions. The bridge derives position changes
+    // after a student's leave so students cannot edit other users' activity.
+    if (currentUser.role === 'staff') s.queue.forEach((user, index) => {
       if (action !== 'join' || before.some(u => u.id === user.id)) {
         events.push({ type: 'position', participationId: user.participationId, position: index + 1, queueOpen: s.open });
       }

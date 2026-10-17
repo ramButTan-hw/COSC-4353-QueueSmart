@@ -12,8 +12,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import config
 from app.errors import ApiError, api_error_handler, http_error_handler, validation_error_handler
-from app.routers import auth
+from app.routers import auth, notifications, history, activity_demo
 from app.store import seed_demo_users
+from app.ui import mount_ui
 
 
 @asynccontextmanager
@@ -34,11 +35,15 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.add_exception_handler(StarletteHTTPException, http_error_handler)
     app.include_router(auth.router)
+    app.include_router(notifications.router)
+    app.include_router(history.router)
+    app.include_router(activity_demo.router)
 
     @app.get("/health", tags=["meta"])
     def health():
         return {"status": "ok"}
 
+    mount_ui(app)
     return app
 
 

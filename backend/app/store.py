@@ -5,6 +5,7 @@ here so the whole back end reads and writes the same objects. Everything resets 
 server restarts.
 """
 from app import config
+from app.activity import Activity
 from app.models import User
 from app.security import hash_password
 
@@ -16,6 +17,7 @@ class Store:
     def reset(self):
         self.users: dict[str, User] = {}
         self._email_index: dict[str, str] = {}
+        self.activity = Activity()
 
     # --- users ---
     def add_user(self, user: User) -> User:

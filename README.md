@@ -1,66 +1,85 @@
 # QueueSmart — COSC 4353
 
-A2 browser UI plus **A3 modules 5 (Notifications) and 6 (History)**. The new backend uses JavaScript, Node.js's built-in HTTP server, and in-memory collections. This shares the UI's language and requires no installed packages or database.
+QueueSmart uses one **Python/FastAPI backend** with in-memory data for A3. The authentication module is integrated with modules **5 (Notifications)** and **6 (History)**. The A2 interface calls these APIs with the login token. No database is required.
 
 ## Run
 
-Requires Node.js 22 or newer.
+Requires Python 3.11+ and `uv`. From the repository root:
 
 ```sh
-npm start
+cd backend
+uv sync --frozen
+uv run uvicorn app.main:app --reload --port 8001
 ```
 
-Open [QueueSmart](http://localhost:3000) through the server rather than opening HTML files directly. Use the existing demo login with any valid email and a password of at least six characters. `PORT=3001 npm start` selects a different port.
+Open [QueueSmart](http://localhost:8001) and [API documentation](http://localhost:8001/docs). FastAPI serves both the UI and API, so a separate frontend server is unnecessary. Run one worker because the data is in memory. Restarting the backend clears activity and registered accounts; the demo accounts are recreated.
 
-## Modules implemented
+| Account | Email | Password |
+| --- | --- | --- |
+| Student | `student@uh.edu` | `Password1` |
+| Staff | `admin@uh.edu` | `Password1` |
 
-- **Notifications:** the backend creates a user-targeted confirmation on joining and one near-front reminder per visit when the user reaches position 1 or 2 in an open queue. Closed queues defer the reminder until reopening. Reordering and repeated position updates do not duplicate reminders. The existing bell and dashboard fetch these messages, with five-second polling. Read-one, read-all, and clear actions update the backend.
-- **History:** each join starts a visit with a service snapshot and server-generated timestamp. Serving, leaving, and removal complete that visit with an outcome and completion time. Users see only their requested identity's records, newest visit first. The history page displays joined/completed times, outcome badges, a visit count, and quick date ranges (All time, Today, Last 7 days, Last 30 days). Custom start/end dates are inclusive; either can be left blank. Apply dates confirms a custom range and Reset filters returns to all visits. Invalid ranges display an error without showing unfiltered results.
-- **Validation:** event objects enforce required fields, types, nonblank strings, length limits, positive integer IDs/positions, and valid event names. Invalid batches return JSON errors without partial writes. Repeated joins, overlapping active visits, and updates to completed visits are rejected.
+The server assigns the role after login. Public registration through `/auth/register` creates students only. Login tokens and the current user are stored per tab, so separate student and staff tabs can be used for testing. Log out clears both. The default signing key is for local development; the existing authentication configuration supports `JWT_SECRET` and `JWT_EXPIRES_MINUTES`.
 
-All notification/history data disappears on server restart. A new server session also starts fresh browser demo queues on page reload. No database is used. Existing supplementary A2 messages (staff alerts, queue open/closed, served/removed) still use browser storage.
+After dependency setup, `npm start` from the repository root also starts FastAPI on port 8001. `PORT=8002 npm start` selects another port. Node.js 22+ is used only for these command shortcuts and JavaScript tests; there is no Node backend.
 
-Authentication, service management, queue ordering, and wait-time estimation remain the existing A2 browser demo. The event hook connects those queue actions to modules 5 and 6; it does not implement modules 1–4. Consequently, queues still synchronize only between tabs of the same browser, not across devices.
+## Modules 5 and 6
+
+- **Notifications:** joining creates a personal confirmation. Reaching position 1 or 2 in an open queue creates one near-front reminder per visit. Paused queues defer it until reopening; reordering and clearing notifications do not cause duplicates. Read-one, read-all, and clear actions affect only the authenticated user. The bell and dashboard refresh from the API.
+- **History:** each join records the service name and server timestamp. Serving, leaving, or removal records an outcome and completion timestamp. The UI displays joined/completed dates and times, outcome badges, visit counts, quick ranges, and inclusive custom date filters. Invalid ranges display an error.
+- **Validation:** required fields, strict types, maximum text lengths, positive integer IDs/positions, valid event types, and batch size are checked. Duplicate joins, overlapping active visits, and updates to completed visits are rejected. Failed event batches roll back history, notification messages, and reminder state together.
+
+Notifications and history use the teammate's `get_current_user` dependency, shared `db` store, and structured error responses. Identity headers or query parameters cannot select another user's data.
+
+**Remaining A2 scope:** services, queue controls, and estimated wait times still use the browser demo until modules 2–4 are implemented by the team. Queue state is shared between tabs of the same browser, not across devices. Supplementary A2 messages (staff join/leave alerts, served/removed, queue open/closed) remain in browser storage. The required join and near-front notifications come from FastAPI.
 
 ## API
 
+All activity endpoints require `Authorization: Bearer <access_token>` from `POST /auth/login`.
+
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| GET | `/api/session` | Current in-memory session ID, used to reset the browser demo after restart |
-| POST | `/api/queue-events` | Apply a validated batch of participation events atomically |
-| GET | `/api/notifications` | List the requested user's notifications |
-| PATCH | `/api/notifications/:id/read` | Mark a notification read |
-| POST | `/api/notifications/read-all` | Mark the user's notifications read |
-| DELETE | `/api/notifications` | Clear the user's notifications without changing history |
-| GET | `/api/history?from=2026-10-01&to=2026-10-31` | List visits, optionally filtered by inclusive UTC join-date range |
+| GET | `/api/notifications` | Current user's notices, newest first |
+| PATCH | `/api/notifications/{id}/read` | Mark one of the current user's notices read |
+| POST | `/api/notifications/read-all` | Mark all of the current user's notices read |
+| DELETE | `/api/notifications` | Clear notices without changing history |
+| GET | `/api/history` | Current user's visits, newest first |
+| GET | `/api/history?from=2026-10-01&to=2026-10-31` | Inclusive UTC join-date filter |
+| GET | `/api/session` | In-memory session ID used to reset the browser demo queue |
+| POST | `/api/queue-events` | Temporary authenticated bridge from the A2 browser queue |
 
-Notification/history requests use the `X-QueueSmart-User` header, populated from the A2 demo identity. **This header is not authentication** and can be impersonated. Event ingestion is a trusted demo integration hook; module 1 must supply authenticated identity/authorization before deployment. The server binds to the local machine by default.
+History timestamps (`joinedAt`, `completedAt`, and `date`) are Unix milliseconds. `date` is a compatibility alias for completion time or, while waiting, join time. Outcomes are `Waiting`, `Served`, `Left queue`, and `Removed`. The history page filters by local calendar dates; optional API date filters use UTC. Both filter by join time.
 
-Queue-event request example (`Content-Type: application/json`):
+Errors use the shared shape `{ "error": { "code": "...", "message": "...", "fields": { ... } } }`. Field details are included for request validation. Statuses include 401 for missing/invalid authentication, 403 for disallowed actions, 404 for missing resources, 409 for lifecycle conflicts, and 422 for invalid input.
 
-```json
-{
-  "events": [
+## Integration with the team's queue module
+
+Implementation is in `backend/app/activity/` and the notification/history routers. The only shared backend wiring is router registration in `app/main.py` and `self.activity = Activity()` in the shared store. The teammate's auth logic and locked dependencies are unchanged.
+
+Once the team implements queue operations in Python, call the shared activity service as part of each validated queue change:
+
+```python
+from app.store import db
+
+# IDs must match the authenticated user and the queue module's service/visit IDs.
+db.activity.apply([
     {
-      "type": "joined",
-      "participationId": "unique-visit-id",
-      "userId": "student@example.com",
-      "serviceId": 1,
-      "serviceName": "Password Reset",
-      "position": 3,
-      "queueOpen": true
+        "type": "joined", "participationId": "unique-visit-id", "userId": student.id,
+        "serviceId": service.id, "serviceName": service.name,
+        "position": 3, "queueOpen": True,
     }
-  ]
-}
+])
 ```
 
-A `position` event requires `participationId`, `position`, and `queueOpen`. A `served`, `left`, or `removed` event requires `participationId`. Each visit ID must be unique; generate a new one when rejoining. Clearing notifications does not reset the once-per-visit reminder flag.
+For position changes, send `type: "position"`, `participationId`, `position`, and `queueOpen`. For completion, send `type: "served"`, `"left"`, or `"removed"`, plus `participationId`. Batch a completion and affected users' new positions together. Use a new participation ID when someone rejoins. Clearing notifications preserves the reminder flag on the visit.
 
-Requests accept 1–1000 events and up to 64 KiB of JSON. `participationId` and `serviceName` allow 100 characters; `userId` allows 254. Numeric values must be positive safe integers. Errors use `{ "error": "message" }`, with 400 for validation, 404 for missing resources, 409 for lifecycle conflicts, 413 for oversized bodies, and 415 for unsupported body content types.
+`apply()` validates the entire batch and rolls back activity changes on failure. Call it inside the queue service's controlled state transition; it does not roll back the queue module's own collections. Batches allow 1–1000 events. Participation IDs and service names allow 1–100 characters, user IDs 1–254, and numeric IDs/positions must be positive JavaScript-safe integers.
 
-The history page uses local calendar dates for its browser filters; API date filters use UTC calendar dates. Both filter by the join time. History responses include `id`, `userId`, `serviceId`, `serviceName`, `joinedAt`, `completedAt`, and `outcome`; timestamps are Unix milliseconds. `date` is a display compatibility alias for completion time or, while waiting, join time.
+The temporary bridge is isolated in `app/routers/activity_demo.py`. Students can submit only one own join or leave; the bridge derives positions and other users' reminders after a leave. Staff can submit completion and position batches. Service names and open/closed state still come from the browser demo because there is no backend service module yet. When the real queue API is connected, remove this bridge router and route frontend queue actions through that API. The notification and history read APIs can stay as they are.
 
 ## Tests
+
+After `uv sync --frozen`, from the repository root:
 
 ```sh
 npm test
@@ -68,12 +87,17 @@ npm run test:coverage
 npm run test:strength
 ```
 
-The tests use Node.js's built-in runner and cover business rules, validation, recipient isolation, batch rollback, real HTTP responses, and the browser adapter/store calling the API. No external test dependencies are required. HTTP integration tests need permission to bind local ports.
+Or run the Python suite directly from `backend/`:
 
-Latest verification: **24 tests passed; 98.71% backend line coverage**, exceeding A3's 70–80% target. Run `npm run test:coverage` to regenerate the coverage report.
+```sh
+uv run pytest --cov=app --cov-report=term-missing --cov-report=html
+uv run python check_test_strength.py
+```
 
-The tests assert behavior rather than just successful execution: exact server timestamps, all participation outcomes, recipient isolation, rollback after a partially applied batch, duplicate-reminder prevention, valid field-length boundaries, and date filtering at midnight. Date helper tests cover year changes and 23/25-hour daylight-saving days in America/Chicago.
+Verification: **124 Python tests and 8 JavaScript tests pass**, with **100% backend statement coverage**. The coverage report excludes tests and includes the existing auth module. The JavaScript suite exercises date boundaries and the actual browser adapter/store against a local FastAPI server using real registration and login tokens, including session expiry handling. Those integration tests need permission to bind loopback ports.
 
-`npm run test:strength` temporarily introduces 12 plausible backend regressions into isolated copies of the source (such as mixed recipients, incorrect outcomes, missing rollback, and wrong date boundaries). All 12 are caught by the business-rule unit tests. The check leaves the real application files untouched. This is a targeted regression check, not a claim that every possible bug is covered.
+Tests check exact timestamps and outcomes, per-user access, forbidden student actions, rollback after partial processing, one reminder per visit, field-length boundaries, and inclusive midnight filters. Date helper tests include year changes and 23/25-hour daylight-saving days in America/Chicago.
 
-Manual check: log in as a student, join an open queue, inspect the bell, and visit History. In another tab, log in as staff and serve/remove the student; the student's history updates within five seconds. Leaving a queue records “Left queue.”
+The strength check introduces 12 deliberate regressions into temporary copies, such as wrong recipients, duplicate reminders, incorrect outcomes, missing rollback, and wrong date boundaries. All 12 are caught by the Python business-rule tests. This checks specific regressions, not every possible bug.
+
+Manual check: log in as the demo student, join an open queue, inspect the bell, and open History. In another tab, log in as demo staff and serve/remove the student. History refreshes within five seconds. Leaving a queue records `Left queue`. Clear the notifications and confirm the visit remains in History.

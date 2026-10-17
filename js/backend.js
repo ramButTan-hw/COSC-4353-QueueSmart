@@ -1,23 +1,34 @@
-/* Adapter for A3 modules 5 and 6. Queue/authentication remain the A2 demo. */
+/* Shared FastAPI adapter: authenticated identity comes from the login token. */
 (function () {
   'use strict';
-  async function request(path, method = 'GET', body) {
-    const response = await fetch('/api/' + path, {
+  async function request(path, method = 'GET', body, authenticated = true) {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = sessionStorage.getItem('queuesmart.token');
+    if (authenticated && token) headers.Authorization = 'Bearer ' + token;
+    const response = await fetch(path, {
       method,
-      headers: { 'Content-Type': 'application/json', 'X-QueueSmart-User': window.currentUser?.id || '' },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body)
     });
     const value = await response.json();
-    if (!response.ok) throw new Error(value.error || 'Unable to contact QueueSmart.');
+    if (!response.ok) {
+      if (response.status === 401 && authenticated) {
+        sessionStorage.removeItem('queuesmart.token');
+        sessionStorage.removeItem('queuesmart.session');
+        location.replace('front%20page.html');
+      }
+      throw new Error(value.error?.message || 'Unable to contact QueueSmart.');
+    }
     return value;
   }
   window.QueueBackend = {
-    session: () => request('session'),
-    events: events => request('queue-events', 'POST', { events }),
-    notifications: () => request('notifications'),
-    markRead: id => request('notifications/' + encodeURIComponent(id) + '/read', 'PATCH'),
-    markAllRead: () => request('notifications/read-all', 'POST'),
-    clearNotifications: () => request('notifications', 'DELETE'),
-    history: () => request('history')
+    login: (email, password) => request('/auth/login', 'POST', { email, password }, false),
+    session: () => request('/api/session'),
+    events: events => request('/api/queue-events', 'POST', { events }),
+    notifications: () => request('/api/notifications'),
+    markRead: id => request('/api/notifications/' + encodeURIComponent(id) + '/read', 'PATCH'),
+    markAllRead: () => request('/api/notifications/read-all', 'POST'),
+    clearNotifications: () => request('/api/notifications', 'DELETE'),
+    history: () => request('/api/history')
   };
 })();

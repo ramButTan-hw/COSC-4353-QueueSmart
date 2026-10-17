@@ -4,10 +4,10 @@
   "private": true,
   "description": "QueueSmart A3 notification and history modules",
   "scripts": {
-    "start": "node backend/server.cjs",
-    "test": "node --test tests/*.cjs",
-    "test:strength": "node scripts/check-test-strength.cjs",
-    "test:coverage": "node --experimental-test-coverage --test-coverage-include='backend/*.cjs' --test tests/*.cjs"
+    "start": "node scripts/backend.cjs start",
+    "test": "node scripts/backend.cjs test && node --test tests/*.cjs",
+    "test:strength": "node scripts/backend.cjs strength",
+    "test:coverage": "node scripts/backend.cjs coverage"
   },
   "engines": { "node": ">=22" }
 }
