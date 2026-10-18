@@ -2,6 +2,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.models import User
+from app.security import hash_password
 from app.store import db
 
 
@@ -36,3 +38,16 @@ def token(client, registered):
 
 def bearer(tok):
     return {"Authorization": f"Bearer {tok}"}
+
+
+@pytest.fixture
+def student_headers(token):
+    return bearer(token)
+
+
+@pytest.fixture
+def staff_headers(client):
+    """Headers for a staff user (registration only creates students, so the user is added directly)."""
+    db.add_user(User("staff-1", "Sam Staff", "staff@uh.edu", hash_password("Passw0rd1"), "staff"))
+    tok = client.post("/auth/login", json={"email": "staff@uh.edu", "password": "Passw0rd1"}).json()["access_token"]
+    return bearer(tok)

@@ -23,3 +23,5 @@ CORS_ORIGINS = [
 ROLE_STUDENT = "student"
 ROLE_STAFF = "staff"
 ROLES = (ROLE_STUDENT, ROLE_STAFF)
+
+PRIORITIES = ("low", "medium", "high")
