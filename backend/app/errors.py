@@ -1,8 +1,6 @@
 """One error shape for the whole API:
 
     {"error": {"code": "...", "message": "...", "fields": {"email": "..."}}}
-
-`fields` is only present for errors tied to specific input fields.
 """
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
@@ -40,7 +38,7 @@ def error_body(code, message, fields=None):
 
 
 def describe(err):
-    """Turn one pydantic error into a short, human-readable message."""
+    "Turn pydantic errors into human readable comments"
     kind = err.get("type", "")
     ctx = err.get("ctx") or {}
     if kind == "missing":
@@ -51,6 +49,14 @@ def describe(err):
         return f"Must be at most {ctx.get('max_length')} characters."
     if kind == "string_type":
         return "Must be a string."
+    if kind in ("int_type", "int_parsing"):
+        return "Must be a whole number."
+    if kind == "greater_than_equal":
+        return f"Must be at least {ctx.get('ge')}."
+    if kind == "less_than_equal":
+        return f"Must be at most {ctx.get('le')}."
+    if kind == "literal_error":
+        return f"Must be one of: {ctx.get('expected')}."
     if kind == "extra_forbidden":
         return "Unknown field."
     if kind == "value_error":
