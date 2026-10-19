@@ -29,7 +29,7 @@
     const range=historyRange(),history=document.getElementById('history-list');if(history)history.innerHTML=data.history.filter(h=>h.userId===currentUser.id&&(!range||((!range.from||h.date>=range.from)&&(!range.to||h.date<range.to)))).map(h=>`<div class="history-row"><div><div class="service-name">${esc(h.serviceName)}</div><div class="small muted">${date(h.date)}</div></div><span class="badge">${esc(h.outcome)}</span></div>`).join('')||`<div class="empty">${range?'No history in this date range.':'No queue history yet.'}</div>`;
   }
   document.addEventListener('DOMContentLoaded',()=>{
-    render();document.getElementById('service-select')?.addEventListener('change',render);
+    render();Services.load().catch(e=>console.warn('Could not load services:',e.message));document.getElementById('service-select')?.addEventListener('change',render);
     ['history-from','history-to'].forEach(id=>document.getElementById(id)?.addEventListener('change',render));
     document.getElementById('history-clear')?.addEventListener('click',()=>{document.getElementById('history-from').value='';document.getElementById('history-to').value='';render();});
     document.addEventListener('click',e=>{if(!['join-btn','leave-btn','leave-status'].includes(e.target.id))return;try{if(e.target.id==='join-btn'){QueueStore.change(document.getElementById('service-select').value,'join');location.href='queue-status.html';}else{const a=QueueStore.active();if(a)QueueStore.change(a.service.id,'leave',currentUser.id);}}catch(error){const box=document.getElementById('people-ahead');if(box)box.textContent=error.message;}});
