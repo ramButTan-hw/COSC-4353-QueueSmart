@@ -37,6 +37,24 @@
     return clash ? 'A service with this name already exists.' : '';
   }
 
+  var PASSWORD_MIN = 8;
+  var PASSWORD_MAX = 128;
+
+  // Same rule as the back end's registration: 8-128 characters with at least one letter and one number.
+  function password(value) {
+    var v = String(value == null ? '' : value);
+    if (!v) return 'Enter a password.';
+    if (v.length < PASSWORD_MIN) return 'Password must be at least ' + PASSWORD_MIN + ' characters.';
+    if (v.length > PASSWORD_MAX) return 'Password must be ' + PASSWORD_MAX + ' characters or fewer.';
+    if (!/[A-Za-z]/.test(v) || !/\d/.test(v)) return 'Password must contain at least one letter and one number.';
+    return '';
+  }
+
+  function confirm(passwordValue, confirmValue) {
+    if (!confirmValue) return 'Confirm your password.';
+    return passwordValue === confirmValue ? '' : 'Passwords do not match.';
+  }
+
   function parseDay(v) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
     var y = +v.slice(0, 4), m = +v.slice(5, 7), day = +v.slice(8, 10);
@@ -60,6 +78,8 @@
     wholeNumber: wholeNumber,
     uniqueName: uniqueName,
     dateRange: dateRange,
+    password: password,
+    confirm: confirm,
     parseDay: parseDay,
     EMAIL_MAX: EMAIL_MAX
   };

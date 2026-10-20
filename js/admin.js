@@ -12,6 +12,14 @@
   const status = s => `<span class="badge ${s.open ? 'open' : 'closed'}">${s.open ? 'Open' : 'Closed'}</span>`;
   const toggleButton = s => `<button data-action="toggle" data-id="${s.id}">${s.open ? 'Close' : 'Open'} queue</button>`;
   function feedback(message) { clearTimeout(feedbackTimer); document.getElementById('feedback').textContent = message; feedbackTimer = setTimeout(() => document.getElementById('feedback').textContent = '', 4500); }
+  // Show the server's per-field messages on the form (the same bubbles the browser uses for the local checks).
+  function showServerError(error) {
+    const inputs = {name: 'service-name', description: 'description', duration: 'duration', priority: 'priority'};
+    const fields = (error && error.fields) || {};
+    let shown = false;
+    Object.keys(fields).forEach(field => { const el = document.getElementById(inputs[field]); if (el) { el.setCustomValidity(fields[field]); shown = true; } });
+    if (shown) form.reportValidity(); else feedback((error && error.message) || 'Something went wrong.');
+  }
   function render() {
     const view = ['dashboard','services','queues'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'dashboard';
     document.querySelectorAll('nav a').forEach(a => { const active = a.hash === '#' + view; a.classList.toggle('active', active); if (active) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
@@ -19,10 +27,12 @@
     const overview = view === 'dashboard';
     main.innerHTML = `<div class="page-heading"><div><h1>${overview ? 'Admin dashboard' : 'Service management'}</h1><p class="muted">${overview ? 'Your help desk at a glance.' : 'Manage the support your help desk provides.'}</p></div><button class="primary" data-action="create">+ Create service</button></div>
       ${overview ? `<div class="stats"><div class="stat"><span>Total services</span><strong>${services.length}</strong></div><div class="stat"><span>Students waiting</span><strong>${services.reduce((n,s)=>n+s.queue.length,0)}</strong></div><div class="stat"><span>Open queues</span><strong>${services.filter(s=>s.open).length}</strong></div></div>` : ''}
-      <section class="panel"><div class="panel-title"><h2>${overview ? 'Service overview' : 'All services'}</h2><span class="muted">${services.length} services</span></div><div class="table-scroll"><table><thead><tr><th>Service</th><th>${overview ? 'Status' : 'Priority'}</th><th>${overview ? 'Waiting' : 'Duration'}</th><th>Actions</th></tr></thead><tbody>${services.map(s=>`<tr><td><strong>${escape(s.name)}</strong><small>${escape(s.description)}</small></td><td>${overview ? status(s) : `<span class="badge ${s.priority}">${s.priority}</span>`}</td><td>${overview ? `<strong>${s.queue.length}</strong> students` : `${s.duration} min`}</td><td><div class="actions">${overview ? `${toggleButton(s)}<button data-action="queue" data-id="${s.id}">View queue →</button>` : `<button data-action="edit" data-id="${s.id}">Edit service</button>`}</div></td></tr>`).join('')}</tbody></table></div></section>`;
+      <section class="panel"><div class="panel-title"><h2>${overview ? 'Service overview' : 'All services'}</h2><span class="muted">${services.length} services</span></div><div class="table-scroll"><table><thead><tr><th>Service</th><th>${overview ? 'Status' : 'Priority'}</th><th>${overview ? 'Waiting' : 'Duration'}</th><th>Actions</th></tr></thead><tbody>${services.map(s=>`<tr><td><strong>${escape(s.name)}</strong><small>${escape(s.description)}</small></td><td>${overview ? status(s) : `<span class="badge ${s.priority}">${s.priority}</span>`}</td><td>${overview ? `<strong>${s.queue.length}</strong> students` : `${s.duration} min`}</td><td><div class="actions">${overview ? `${toggleButton(s)}<button data-action="queue" data-id="${s.id}">View queue →</button>` : `<button data-action="edit" data-id="${s.id}">Edit service</button><button class="danger" data-action="delete" data-id="${s.id}">Delete</button>`}</div></td></tr>`).join('')}</tbody></table></div></section>`;
   }
   function renderQueue() {
-    const s = services.find(s=>s.id===selected) || services[0]; selected = s.id;
+    const s = services.find(s=>s.id===selected) || services[0];
+    if (!s) { main.innerHTML = '<div class="page-heading"><div><h1>Queue management</h1></div></div><div class="empty">No services yet.<br>Create one under Service management.</div>'; return; }
+    selected = s.id;
     main.innerHTML = `<div class="page-heading"><div><h1>Queue management</h1><p class="muted">Keep students moving, one service at a time.</p></div></div><div class="queue-tools"><label for="queue-service">Service</label><select id="queue-service">${services.map(item=>`<option value="${item.id}" ${item.id===s.id?'selected':''}>${escape(item.name)}</option>`).join('')}</select>${status(s)}</div>
       <section class="panel"><div class="panel-title"><div><h2>${escape(s.name)}</h2><p class="muted">${s.queue.length} waiting · ${s.duration} min per student</p></div><div class="actions">${toggleButton(s)}<button class="primary" data-action="serve" data-id="${s.id}" ${!s.open || !s.queue.length?'disabled':''}>Serve next user</button></div></div>
       ${!s.open ? '<p class="muted" style="padding:16px 24px">Open this queue to serve the next student.</p>' : ''}
@@ -45,6 +55,10 @@
     const action=button.dataset.action,s=services.find(s=>s.id===Number(button.dataset.id));
     if(action==='create'){openForm();return;}if(!s)return;
     if(action==='edit'){openForm(s);return;}if(action==='queue'){selected=s.id;location.hash='queues';return;}
+    if(action==='delete'){
+      if(confirm(`Delete "${s.name}"? Students waiting in its queue will lose their place.`))Services.remove(s.id).then(()=>{services=QueueStore.read().services;render();feedback('Service deleted.');}).catch(showServerError);
+      return;
+    }
     try{QueueStore.change(s.id,action,button.dataset.user);feedback('Queue updated.');}catch(error){feedback(error.message);}
   });
   form.addEventListener('input',event=>event.target.setCustomValidity?.(''));
@@ -60,9 +74,19 @@
     if(!form.reportValidity())return;
     const values={name:name.value.trim(),description:description.value.trim(),duration:Number(duration.value),priority:document.getElementById('priority').value};
     const existing=services.find(s=>s.id===Number(document.getElementById('service-id').value));
-    QueueStore.saveService(values,existing?.id);
-    dialog.close();render();feedback(existing?'Service updated.':'Service created. Open its queue when ready.');
+    save(values,existing);
   });
+  async function save(values,existing){
+    try{
+      if(existing){
+        const changes=Object.fromEntries(Object.entries(values).filter(([k,v])=>existing[k]!==v));
+        if(!Object.keys(changes).length){dialog.close();feedback('No changes to save.');return;}
+        await Services.update(existing.id,changes);
+      }else await Services.create(values);
+      services=QueueStore.read().services;dialog.close();render();feedback(existing?'Service updated.':'Service created. Open its queue when ready.');
+    }catch(error){showServerError(error);}
+  }
   document.getElementById('cancel').onclick=()=>dialog.close();document.getElementById('dismiss').onclick=()=>dialog.close();
   window.addEventListener('hashchange',render);render();
+  Services.load().catch(error=>feedback(error.message));
 })();
