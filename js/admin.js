@@ -1,4 +1,4 @@
-/* Admin UI backed by the shared same-browser demo store. */
+/* Admin UI backed by the shared FastAPI queue and service modules. */
 (async function () {
   'use strict';
   if (!window.currentUser) return;
@@ -56,13 +56,12 @@
     const action=button.dataset.action,s=services.find(s=>s.id===Number(button.dataset.id));
     if(action==='create'){openForm();return;}if(!s)return;
     if(action==='edit'){openForm(s);return;}if(action==='queue'){selected=s.id;location.hash='queues';return;}
-    button.disabled=true;
-    try{await QueueStore.change(s.id,action,button.dataset.user);feedback('Queue updated.');}catch(error){feedback(error.message);}finally{button.disabled=false;}
     if(action==='delete'){
       if(confirm(`Delete "${s.name}"? Students waiting in its queue will lose their place.`))Services.remove(s.id).then(()=>{services=QueueStore.read().services;render();feedback('Service deleted.');}).catch(showServerError);
       return;
     }
-    try{QueueStore.change(s.id,action,button.dataset.user);feedback('Queue updated.');}catch(error){feedback(error.message);}
+    button.disabled=true;
+    try{await QueueStore.change(s.id,action,button.dataset.user);feedback('Queue updated.');}catch(error){feedback(error.message);}finally{button.disabled=false;}
   });
   form.addEventListener('input',event=>event.target.setCustomValidity?.(''));
   form.addEventListener('submit',event=>{

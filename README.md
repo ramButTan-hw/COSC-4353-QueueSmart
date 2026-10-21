@@ -1,6 +1,6 @@
 # QueueSmart — COSC 4353
 
-QueueSmart uses one **Python/FastAPI backend** with in-memory data for A3. The authentication module is integrated with modules **5 (Notifications)** and **6 (History)**. The A2 interface calls these APIs with the login token. No database is required.
+QueueSmart uses one **Python/FastAPI backend** with in-memory data for A3. The team’s authentication, service, and queue modules are integrated with modules **5 (Notifications)** and **6 (History)**. The A2 interface calls these APIs with the login token. No database is required.
 
 ## Run
 
@@ -27,11 +27,11 @@ After dependency setup, `npm start` from the repository root also starts FastAPI
 
 - **Notifications:** joining creates a personal confirmation. Reaching position 1 or 2 in an open queue creates one near-front reminder per visit. Paused queues defer it until reopening; reordering and clearing notifications do not cause duplicates. Read-one, read-all, and clear actions affect only the authenticated user. The bell and dashboard refresh from the API.
 - **History:** each join records the service name and server timestamp. Serving, leaving, or removal records an outcome and completion timestamp. The UI displays joined/completed dates and times, outcome badges, visit counts, quick ranges, and inclusive custom date filters. Invalid ranges display an error.
-- **Validation:** required fields, strict types, maximum text lengths, positive integer IDs/positions, valid event types, and batch size are checked. Duplicate joins, overlapping active visits, and updates to completed visits are rejected. Failed event batches roll back history, notification messages, and reminder state together.
+- **Validation:** required fields, strict types, maximum text lengths, positive integer IDs/positions, valid event types, and batch size are checked. Duplicate joins, overlapping active visits, and updates to completed visits are rejected. Failed queue operations roll back queue entries, service state, history, notification messages, and reminder state together.
 
 Notifications and history use the teammate's `get_current_user` dependency, shared `db` store, and structured error responses. Identity headers or query parameters cannot select another user's data.
 
-**Remaining A2 scope:** services, queue controls, and estimated wait times still use the browser demo until modules 2–4 are implemented by the team. Queue state is shared between tabs of the same browser, not across devices. Supplementary A2 messages (staff join/leave alerts, served/removed, queue open/closed) remain in browser storage. The required join and near-front notifications come from FastAPI.
+The UI reads services and queue positions from FastAPI and refreshes every five seconds. Student queue summaries expose counts and the student’s own position; staff can see the full queue. Estimated waits use the actual position and service duration. Required student notifications, including served/removed messages, come from the backend. Optional staff join/leave alerts remain local to the browser.
 
 ## API
 
@@ -45,8 +45,14 @@ All activity endpoints require `Authorization: Bearer <access_token>` from `POST
 | DELETE | `/api/notifications` | Clear notices without changing history |
 | GET | `/api/history` | Current user's visits, newest first |
 | GET | `/api/history?from=2026-10-01&to=2026-10-31` | Inclusive UTC join-date filter |
-| GET | `/api/session` | In-memory session ID used to reset the browser demo queue |
-| POST | `/api/queue-events` | Temporary authenticated bridge from the A2 browser queue |
+| GET | `/services` | List services from the shared store |
+| GET | `/queues` | Queue counts and entries visible to the signed-in user |
+| POST | `/queues/{id}/join` | Join and create history/notifications |
+| DELETE | `/queues/{id}/leave` | Leave and complete the visit |
+| POST | `/queues/{id}/serve-next` | Staff serves one student |
+| POST | `/queues/{id}/open` or `/close` | Staff changes queue availability |
+| DELETE | `/queues/{id}/members/{user_id}` | Staff removes a student |
+| POST | `/queues/{id}/move` | Staff reorders within a priority level |
 
 History timestamps (`joinedAt`, `completedAt`, and `date`) are Unix milliseconds. `date` is a compatibility alias for completion time or, while waiting, join time. Outcomes are `Waiting`, `Served`, `Left queue`, and `Removed`. The history page filters by local calendar dates; optional API date filters use UTC. Both filter by join time.
 
@@ -54,28 +60,11 @@ Errors use the shared shape `{ "error": { "code": "...", "message": "...", "fiel
 
 ## Integration with the team's queue module
 
-Implementation is in `backend/app/activity/` and the notification/history routers. The only shared backend wiring is router registration in `app/main.py` and `self.activity = Activity()` in the shared store. The teammate's auth logic and locked dependencies are unchanged.
+Modules 5 and 6 live in `backend/app/activity/` and the notification/history routers. `backend/app/queue_activity.py` connects them to the team's existing queue routes. Queue joins, departures, serving, reordering, reopening, and service deletion update activity inside the same locked, reversible in-memory operation. The team's authentication logic, service management, original queue endpoints, priority ordering, and locked dependencies remain in place.
 
-Once the team implements queue operations in Python, call the shared activity service as part of each validated queue change:
+The frontend sends queue actions through `js/api.js` to `/queues`; `js/store.js` keeps only a read cache. The temporary `/api/queue-events` and `/api/session` demo routes have been removed. Browsers can no longer invent visits independently of the real queue. A new queue entry ID gives each rejoin a distinct history record, and manual moves preserve the original arrival timestamp.
 
-```python
-from app.store import db
-
-# IDs must match the authenticated user and the queue module's service/visit IDs.
-db.activity.apply([
-    {
-        "type": "joined", "participationId": "unique-visit-id", "userId": student.id,
-        "serviceId": service.id, "serviceName": service.name,
-        "position": 3, "queueOpen": True,
-    }
-])
-```
-
-For position changes, send `type: "position"`, `participationId`, `position`, and `queueOpen`. For completion, send `type: "served"`, `"left"`, or `"removed"`, plus `participationId`. Batch a completion and affected users' new positions together. Use a new participation ID when someone rejoins. Clearing notifications preserves the reminder flag on the visit.
-
-`apply()` validates the entire batch and rolls back activity changes on failure. Call it inside the queue service's controlled state transition; it does not roll back the queue module's own collections. Batches allow 1–1000 events. Participation IDs and service names allow 1–100 characters, user IDs 1–254, and numeric IDs/positions must be positive JavaScript-safe integers.
-
-The temporary bridge is isolated in `app/routers/activity_demo.py`. Students can submit only one own join or leave; the bridge derives positions and other users' reminders after a leave. Staff can submit completion and position batches. Service names and open/closed state still come from the browser demo because there is no backend service module yet. When the real queue API is connected, remove this bridge router and route frontend queue actions through that API. The notification and history read APIs can stay as they are.
+Activity events are internal Python data, validated by `Activity.apply()`. Batches allow 1–1000 events; the queue integration splits larger updates within the surrounding transaction. Participation IDs and service names allow 1–100 characters, user IDs 1–254, and numeric IDs/positions must be positive JavaScript-safe integers.
 
 ## Tests
 
@@ -94,7 +83,7 @@ uv run pytest --cov=app --cov-report=term-missing --cov-report=html
 uv run python check_test_strength.py
 ```
 
-Verification: **124 Python tests and 8 JavaScript tests pass**, with **100% backend statement coverage**. The coverage report excludes tests and includes the existing auth module. The JavaScript suite exercises date boundaries and the actual browser adapter/store against a local FastAPI server using real registration and login tokens, including session expiry handling. Those integration tests need permission to bind loopback ports.
+Verification: **216 Python tests and 12 JavaScript tests pass**, with **86% backend statement coverage**. Modules 5 and 6 and their queue integration have 100% statement coverage. Overall coverage includes the team’s standalone wait-time prototype, which is not wired into the main FastAPI app or exercised by this suite. The JavaScript suite exercises date boundaries and the actual browser adapter/store against a local FastAPI server using real registration and login tokens, including session expiry handling and independent browser storage. Page regression tests also check JavaScript syntax, the actual login page’s scripts, session initialization, and one admin action per click. Those integration tests need permission to bind loopback ports.
 
 Tests check exact timestamps and outcomes, per-user access, forbidden student actions, rollback after partial processing, one reminder per visit, field-length boundaries, and inclusive midnight filters. Date helper tests include year changes and 23/25-hour daylight-saving days in America/Chicago.
 

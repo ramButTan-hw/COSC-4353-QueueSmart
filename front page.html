@@ -335,53 +335,10 @@
 </div>
 
 <script src="js/validation.js"></script>
-<script src="js/backend.js"></script>
-<script src="js/login.js"></script>
 <script src="js/api.js"></script>
+<script src="js/login.js"></script>
 <script src="js/register.js"></script>
-<script>
-  document.getElementById('loginForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
 
-    const email = document.getElementById('loginEmail');
-    const password = document.getElementById('loginPassword');
-    const emailError = document.getElementById('loginEmailError');
-    const passwordError = document.getElementById('loginPasswordError');
-    let valid = true;
-
-    email.value = email.value.trim();
-    const emailProblem = Validate.email(email.value);
-    if (emailProblem) {
-      emailError.textContent = emailProblem;
-      emailError.classList.add('show');
-      valid = false;
-    } else {
-      emailError.classList.remove('show');
-    }
-
-    if (!password.value || password.value.length < 6) {
-      passwordError.classList.add('show');
-      valid = false;
-    } else {
-      passwordError.classList.remove('show');
-    }
-
-    if (valid) {
-      const formError = document.getElementById('loginFormError');
-      const button = this.querySelector('button[type="submit"]');
-      formError.classList.remove('show');
-      button.disabled = true;
-      try {
-        const user = await Api.login(email.value, password.value);
-        location.href = Api.homeFor(user);
-      } catch (err) {
-        formError.textContent = err.message;
-        formError.classList.add('show');
-        button.disabled = false;
-      }
-    }
-  });
-</script>
 
 </body>
 </html>

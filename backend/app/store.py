@@ -178,7 +178,7 @@ class Store:
                     entry.priority,
                     1,
                 ),
-                entry.joined_at,
+                entry.order if entry.order is not None else entry.joined_at,
                 entry.id,
             ),
         )

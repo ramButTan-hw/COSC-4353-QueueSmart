@@ -7,14 +7,14 @@
     const data=QueueStore.read(),active=QueueStore.active(data);
     const set=(id,text)=>{const el=document.getElementById(id);if(el)el.textContent=text;};
     set('current-queue-status',active?active.service.name:'Not in a queue');set('current-position',active?'#'+(active.index+1):'—');set('current-wait',active?active.index*active.service.duration+' min':'—');
-    const list=document.getElementById('dashboard-services');if(list)list.innerHTML=data.services.map(s=>`<div class="service-row"><div><div class="service-name">${esc(s.name)}</div><div class="small muted">${s.queue.length} waiting • ${s.open?'Open':'Closed'} • about ${s.queue.length*s.duration} min</div></div>${s.open?`<a class="btn btn-secondary" href="join-queue.html?service=${s.id}">Join</a>`:'<span class="badge">Closed</span>'}</div>`).join('');
+    const list=document.getElementById('dashboard-services');if(list)list.innerHTML=data.services.map(s=>`<div class="service-row"><div><div class="service-name">${esc(s.name)}</div><div class="small muted">${s.count} waiting • ${s.open?'Open':'Closed'} • about ${s.count*s.duration} min</div></div>${s.open?`<a class="btn btn-secondary" href="join-queue.html?service=${s.id}">Join</a>`:'<span class="badge">Closed</span>'}</div>`).join('');
     const summary=document.getElementById('notification-summary');if(summary)summary.innerHTML=Notifications.all().slice(0,3).map(n=>`<p>${esc(n.message)}<br><small>${date(n.ts)}</small></p>`).join('')||'<div class="empty">No notifications yet.</div>';
     const select=document.getElementById('service-select');
     if(select){
       const selected=select.value||new URLSearchParams(location.search).get('service')||'';
       select.innerHTML='<option value="">Choose a service</option>'+data.services.map(s=>`<option value="${s.id}">${esc(s.name)}${s.open?'':' (closed)'}</option>`).join('');select.value=selected;
       const s=data.services.find(s=>s.id===Number(select.value));
-      set('estimated-wait',s?s.queue.length*s.duration+' minutes':'Select a service');set('people-ahead',s?s.queue.length+' people currently waiting':'');
+      set('estimated-wait',s?s.count*s.duration+' minutes':'Select a service');set('people-ahead',s?s.count+' people currently waiting':'');
       const join=document.getElementById('join-btn');join.disabled=!s||!s.open||!!active;join.textContent=active?'Leave current queue before joining':s&&!s.open?'Queue closed':'Join Queue';
       document.getElementById('leave-btn').hidden=!active;
     }
@@ -25,11 +25,6 @@
     try{await QueueStore.ready;}catch(error){document.querySelector('main').textContent=error.message;return;}
     render();document.getElementById('service-select')?.addEventListener('change',render);
     document.addEventListener('click',async e=>{if(!['join-btn','leave-btn','leave-status'].includes(e.target.id))return;e.target.disabled=true;try{if(e.target.id==='join-btn'){await QueueStore.change(document.getElementById('service-select').value,'join');location.href='queue-status.html';}else{const a=QueueStore.active();if(a)await QueueStore.change(a.service.id,'leave',currentUser.id);}}catch(error){const box=document.getElementById('people-ahead');if(box)box.textContent=error.message;else window.alert(error.message);}finally{e.target.disabled=false;}});
-  document.addEventListener('DOMContentLoaded',()=>{
-    render();Services.load().catch(e=>console.warn('Could not load services:',e.message));document.getElementById('service-select')?.addEventListener('change',render);
-    ['history-from','history-to'].forEach(id=>document.getElementById(id)?.addEventListener('change',render));
-    document.getElementById('history-clear')?.addEventListener('click',()=>{document.getElementById('history-from').value='';document.getElementById('history-to').value='';render();});
-    document.addEventListener('click',e=>{if(!['join-btn','leave-btn','leave-status'].includes(e.target.id))return;try{if(e.target.id==='join-btn'){QueueStore.change(document.getElementById('service-select').value,'join');location.href='queue-status.html';}else{const a=QueueStore.active();if(a)QueueStore.change(a.service.id,'leave',currentUser.id);}}catch(error){const box=document.getElementById('people-ahead');if(box)box.textContent=error.message;}});
   });
   window.addEventListener('queue-change',render);window.addEventListener('notifications-change',render);
 })();

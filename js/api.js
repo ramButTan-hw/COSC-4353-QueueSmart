@@ -19,9 +19,11 @@
   var TOKEN_KEY = 'queuesmart.token';
   var LOGIN_PAGE = 'front%20page.html';
 
-  // Same host as the page, port 8001, so localhost and 127.0.0.1 both work with the backend's CORS list.
+  // FastAPI serves the UI on its own origin; separate static development servers use port 8001.
   var BASE = window.QUEUESMART_API ||
-    ((location.protocol === 'https:' ? 'https:' : 'http:') + '//' + (location.hostname || 'localhost') + ':8001');
+    (['8000', '8080'].includes(location.port) || location.protocol === 'file:'
+      ? ((location.protocol === 'https:' ? 'https:' : 'http:') + '//' + (location.hostname || 'localhost') + ':8001')
+      : location.origin);
 
   function ApiError(status, code, message, fields) {
     this.name = 'ApiError';

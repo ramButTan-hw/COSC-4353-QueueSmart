@@ -39,17 +39,18 @@ async function startServer(t) {
 async function setup(t, disk = new Map()) {
   const base = await startServer(t);
   const accounts = new Map();
-  async function browser(name = 'alice') {
+  async function browser(name = 'alice', browserDisk = disk) {
     const storage = new Map();
     const ctx = { console, crypto: { randomUUID }, structuredClone, Event: class {},
-      fetch: (url, options) => fetch(base + url, options),
+      QUEUESMART_API: base, fetch,
       location: { replace(value) { ctx.redirected = value; } },
       sessionStorage: { getItem: k => storage.get(k) || null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
-      localStorage: { getItem: k => disk.get(k) || null, setItem: (k, v) => disk.set(k, v) },
+      localStorage: { getItem: k => browserDisk.get(k) || null, setItem: (k, v) => browserDisk.set(k, v) },
       document: { getElementById: () => null }, setTimeout() {}, setInterval() {} };
     ctx.window = ctx; ctx.addEventListener = () => {}; ctx.dispatchEvent = () => {};
     vm.createContext(ctx);
     const load = file => vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), ctx);
+    load('api');
     load('backend');
     const email = name === 'staff' ? 'admin@uh.edu' : name + '@uh.edu';
     if (name !== 'staff' && !accounts.has(name)) {
@@ -59,10 +60,7 @@ async function setup(t, disk = new Map()) {
       assert.equal(registered.status, 201);
       accounts.set(name, true);
     }
-    const login = await ctx.QueueBackend.login(email, 'Password1');
-    ctx.sessionStorage.setItem('queuesmart.token', login.access_token);
-    ctx.sessionStorage.setItem('queuesmart.session', JSON.stringify(login.user));
-    ctx.currentUser = login.user;
+    ctx.currentUser = await ctx.Api.login(email, 'Password1');
     for (const file of ['notifications', 'store']) load(file);
     await ctx.QueueStore.ready;
     return ctx;
@@ -77,18 +75,19 @@ test('A2 queue hooks generate backend notifications and history across separate 
   assert.equal(alice.QueueStore.active().index, 0);
   assert.equal(alice.Notifications.all().length, 2);
   await assert.rejects(alice.QueueStore.change(2, 'join'));
-  const bob = await browser('bob');
+  const bob = await browser('bob', new Map());
   await bob.QueueStore.ready;
   await bob.QueueStore.change(1, 'join');
   assert.equal(bob.Notifications.all().length, 2);
   const staff = await browser('staff');
   await staff.QueueStore.ready;
-  assert.equal(staff.Notifications.all().length, 2);
+  assert.equal(staff.Notifications.all().length, 1);
   await staff.QueueStore.change(1, 'down', alice.currentUser.id);
   await staff.QueueStore.change(1, 'toggle');
   await assert.rejects(staff.QueueStore.change(1, 'serve'));
   await staff.QueueStore.change(1, 'toggle');
   await staff.QueueStore.change(1, 'serve');
+  await bob.QueueStore.refresh();
   assert.equal(bob.QueueStore.active(), null);
   assert.equal((await bob.QueueBackend.history())[0].outcome, 'Served');
   await bob.Notifications.refresh();
@@ -102,7 +101,7 @@ test('A2 queue hooks generate backend notifications and history across separate 
   assert((await alice.QueueBackend.notifications()).every(n => n.read));
   await alice.Notifications.clear();
   assert.equal(alice.Notifications.all().length, 0);
-  assert.equal((await bob.QueueBackend.notifications()).length, 2);
+  assert.equal((await bob.QueueBackend.notifications()).length, 3);
   assert.equal((await alice.QueueBackend.history()).length, 1);
 });
 
@@ -111,7 +110,7 @@ test('closed joins and backend errors preserve the queue; removed visits and rel
   await assert.rejects(ctx.QueueStore.change(3, 'join'));
   await ctx.QueueStore.change(2, 'join');
   const originalFetch = ctx.fetch;
-  ctx.fetch = async () => ({ ok: false, json: async () => ({ error: { message: 'Backend unavailable' } }) });
+  ctx.fetch = async () => ({ ok: false, status: 503, text: async () => JSON.stringify({ error: { message: 'Backend unavailable' } }) });
   await assert.rejects(ctx.QueueStore.change(2, 'leave', ctx.currentUser.id), /Backend unavailable/);
   assert(ctx.QueueStore.active());
   ctx.fetch = originalFetch;
@@ -126,7 +125,7 @@ test('closed joins and backend errors preserve the queue; removed visits and rel
   assert.equal(unrelated.Notifications.all().length, 0);
 });
 
-test('restarting backend resets browser demo queues together with in-memory activity', async t => {
+test('restarting backend resets queues together with in-memory activity', async t => {
   const first = await setup(t);
   await first.ctx.QueueStore.change(1, 'join');
   const second = await setup(t, first.disk);
@@ -136,7 +135,7 @@ test('restarting backend resets browser demo queues together with in-memory acti
 
 test('login errors are readable and invalid tokens clear the browser session', async t => {
   const { ctx } = await setup(t);
-  await assert.rejects(ctx.QueueBackend.login('alice@uh.edu', 'WrongPassword1'), /Incorrect email or password/);
+  await assert.rejects(ctx.Api.login('alice@uh.edu', 'WrongPassword1'), /Incorrect email or password/);
   assert.equal(ctx.redirected, undefined);
   ctx.sessionStorage.setItem('queuesmart.token', 'invalid-token');
   await assert.rejects(ctx.QueueBackend.history(), /Invalid authentication token/);

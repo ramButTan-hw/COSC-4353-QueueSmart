@@ -1,9 +1,8 @@
 /*
  * QueueSmart – services from the back end (Assignment 3)
  *
- * The service catalogue (name, description, duration, priority) lives on the server. Queues are
- * still kept in the browser by QueueStore, so every successful call here finishes by syncing the
- * server's list into QueueStore. Screens keep reading services through QueueStore as before.
+ * The service catalogue (name, description, duration, priority) lives on the server. Queues also live on the server. Successful changes refresh
+ * the service and queue cache in QueueStore. Screens keep reading services through QueueStore as before.
  *
  *   Services.load()               GET /services, then sync into QueueStore
  *   Services.create(values)       POST /services          (staff)
@@ -17,9 +16,8 @@
   'use strict';
 
   async function load() {
-    var list = await Api.get('/services');
-    QueueStore.syncServices(list);
-    return list;
+    await QueueStore.ready;
+    return (await QueueStore.refresh()).services;
   }
 
   // The change itself succeeded once we get here; a failed refresh only leaves the list stale until the next load.

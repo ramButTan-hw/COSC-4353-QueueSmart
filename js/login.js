@@ -8,7 +8,7 @@
     const password = document.getElementById('loginPassword');
     const emailError = document.getElementById('loginEmailError');
     const passwordError = document.getElementById('loginPasswordError');
-    const error = document.getElementById('loginError');
+    const error = document.getElementById('loginFormError');
     const button = form.querySelector('button[type="submit"]');
     email.value = email.value.trim();
     emailError.textContent = Validate.email(email.value);
@@ -19,10 +19,8 @@
     if (emailError.textContent || invalidPassword) return;
     button.disabled = true;
     try {
-      const result = await QueueBackend.login(email.value, password.value);
-      sessionStorage.setItem('queuesmart.token', result.access_token);
-      sessionStorage.setItem('queuesmart.session', JSON.stringify(result.user));
-      location.href = result.user.role === 'staff' ? 'admin.html' : 'user-dashboard.html';
+      const user = await Api.login(email.value, password.value);
+      location.href = Api.homeFor(user);
     } catch (problem) {
       error.textContent = problem.message;
       error.classList.add('show');
