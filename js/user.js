@@ -25,6 +25,11 @@
     try{await QueueStore.ready;}catch(error){document.querySelector('main').textContent=error.message;return;}
     render();document.getElementById('service-select')?.addEventListener('change',render);
     document.addEventListener('click',async e=>{if(!['join-btn','leave-btn','leave-status'].includes(e.target.id))return;e.target.disabled=true;try{if(e.target.id==='join-btn'){await QueueStore.change(document.getElementById('service-select').value,'join');location.href='queue-status.html';}else{const a=QueueStore.active();if(a)await QueueStore.change(a.service.id,'leave',currentUser.id);}}catch(error){const box=document.getElementById('people-ahead');if(box)box.textContent=error.message;else window.alert(error.message);}finally{e.target.disabled=false;}});
+  document.addEventListener('DOMContentLoaded',()=>{
+    render();Services.load().catch(e=>console.warn('Could not load services:',e.message));document.getElementById('service-select')?.addEventListener('change',render);
+    ['history-from','history-to'].forEach(id=>document.getElementById(id)?.addEventListener('change',render));
+    document.getElementById('history-clear')?.addEventListener('click',()=>{document.getElementById('history-from').value='';document.getElementById('history-to').value='';render();});
+    document.addEventListener('click',e=>{if(!['join-btn','leave-btn','leave-status'].includes(e.target.id))return;try{if(e.target.id==='join-btn'){QueueStore.change(document.getElementById('service-select').value,'join');location.href='queue-status.html';}else{const a=QueueStore.active();if(a)QueueStore.change(a.service.id,'leave',currentUser.id);}}catch(error){const box=document.getElementById('people-ahead');if(box)box.textContent=error.message;}});
   });
   window.addEventListener('queue-change',render);window.addEventListener('notifications-change',render);
 })();

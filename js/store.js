@@ -74,4 +74,20 @@
   }
   window.QueueStore = { ready, read, active, change, saveService };
   window.addEventListener('storage', event => { if (event.key === key) window.dispatchEvent(new Event('queue-change')); });
+  function saveService(values,id){const data=read();const s=data.services.find(s=>s.id===id);if(s)Object.assign(s,values);else data.services.push({id:Math.max(0,...data.services.map(s=>s.id))+1,...values,open:false,queue:[]});save(data);}
+  /* Make the local service list match the server's. Queues and open/closed state stay local (the queue module
+     owns them); a service the server no longer lists is dropped along with its queue. */
+  function syncServices(list){
+    const data=read(),ids=new Set(list.map(s=>s.id));let changed=data.services.some(s=>!ids.has(s.id));
+    data.services=list.map(api=>{
+      const local=data.services.find(s=>s.id===api.id);
+      if(!local){changed=true;return {id:api.id,name:api.name,description:api.description,duration:api.duration,priority:api.priority,open:api.open,queue:[]};}
+      for(const k of ['name','description','duration','priority'])if(local[k]!==api[k]){local[k]=api[k];changed=true;}
+      return local;
+    });
+    if(changed)save(data);
+    return changed;
+  }
+  window.QueueStore={read,active,change,saveService,syncServices};
+  window.addEventListener('storage',e=>{if(e.key===KEY)window.dispatchEvent(new Event('queue-change'));});
 })();
