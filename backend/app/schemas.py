@@ -109,3 +109,20 @@ class ServiceOut(BaseModel):
     duration: int
     priority: str
     open: bool
+
+class QueueEntryOut(BaseModel):
+    id: int
+    service_id: int
+    user_id: str
+    user_name: str
+    priority: str
+    joined_at: float
+    position: int
+
+
+class QueueOut(BaseModel):
+    service_id: int
+    service_name: str
+    open: bool
+    count: int
+    entries: list[QueueEntryOut]

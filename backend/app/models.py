@@ -6,9 +6,9 @@ from dataclasses import dataclass
 class User:
     id: str
     name: str
-    email: str  # always stored lowercase
+    email: str
     password_hash: str
-    role: str  # 'student' or 'staff'
+    role: str
 
 
 @dataclass
@@ -16,6 +16,15 @@ class Service:
     id: int
     name: str
     description: str
-    duration: int  # expected minutes per student
-    priority: str  # 'low', 'medium' or 'high'
-    open: bool = False  # whether the queue accepts new students (toggled by the queue module)
+    duration: int
+    priority: str
+    open: bool = False
+
+
+@dataclass
+class QueueEntry:
+    id: int
+    service_id: int
+    user_id: str
+    priority: str
+    joined_at: float
