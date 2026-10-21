@@ -6,7 +6,8 @@ server restarts.
 """
 
 from app import config
-from app.models import QueueEntry, Service, User
+from app.activity import Activity
+from app.models import User, Service, QueueEntry
 from app.security import hash_password
 
 
@@ -22,6 +23,7 @@ class Store:
         # --- users ---
         self.users: dict[str, User] = {}
         self._email_index: dict[str, str] = {}
+        self.activity = Activity()
 
         # --- services ---
         self.services: dict[int, Service] = {}

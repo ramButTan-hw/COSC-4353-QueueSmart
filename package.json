@@ -1,0 +1,13 @@
+{
+  "name": "queuesmart",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QueueSmart A3 notification and history modules",
+  "scripts": {
+    "start": "node scripts/backend.cjs start",
+    "test": "node scripts/backend.cjs test && node --test tests/*.cjs",
+    "test:strength": "node scripts/backend.cjs strength",
+    "test:coverage": "node scripts/backend.cjs coverage"
+  },
+  "engines": { "node": ">=22" }
+}

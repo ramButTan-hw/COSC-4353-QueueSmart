@@ -1,8 +1,9 @@
 /* Admin UI backed by the shared same-browser demo store. */
-(function () {
+(async function () {
   'use strict';
   if (!window.currentUser) return;
   initNotifications();
+  try { await QueueStore.ready; } catch (error) { document.getElementById('feedback').textContent = error.message; return; }
   let services = QueueStore.read().services;
   let selected = 1, feedbackTimer;
   const main = document.getElementById('main');
@@ -50,11 +51,13 @@
   }
   window.addEventListener('queue-change',()=>{services=QueueStore.read().services;render();});
   main.addEventListener('change',e=>{if(e.target.id==='queue-service'){selected=Number(e.target.value);render();}});
-  main.addEventListener('click',e=>{
+  main.addEventListener('click',async e=>{
     const button=e.target.closest('button[data-action]');if(!button||button.disabled)return;
     const action=button.dataset.action,s=services.find(s=>s.id===Number(button.dataset.id));
     if(action==='create'){openForm();return;}if(!s)return;
     if(action==='edit'){openForm(s);return;}if(action==='queue'){selected=s.id;location.hash='queues';return;}
+    button.disabled=true;
+    try{await QueueStore.change(s.id,action,button.dataset.user);feedback('Queue updated.');}catch(error){feedback(error.message);}finally{button.disabled=false;}
     if(action==='delete'){
       if(confirm(`Delete "${s.name}"? Students waiting in its queue will lose their place.`))Services.remove(s.id).then(()=>{services=QueueStore.read().services;render();feedback('Service deleted.');}).catch(showServerError);
       return;
