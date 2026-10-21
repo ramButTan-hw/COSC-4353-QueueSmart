@@ -118,6 +118,7 @@ class QueueEntryOut(BaseModel):
     priority: str
     joined_at: float
     position: int
+    estimated_wait_minutes: int
 
 
 class QueueOut(BaseModel):
@@ -125,4 +126,5 @@ class QueueOut(BaseModel):
     service_name: str
     open: bool
     count: int
+    estimated_wait_minutes: int  # Estimate for the next student joining this service.
     entries: list[QueueEntryOut]

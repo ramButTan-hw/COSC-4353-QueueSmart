@@ -17,8 +17,10 @@
       const updated = { services: services.map(service => {
         const queue = queues.find(q => q.service_id === service.id);
         return { ...service, open: queue?.open ?? service.open, count: queue?.count ?? 0,
+          estimatedWait: queue?.estimated_wait_minutes,
           queue: (queue?.entries || []).map(entry => ({ id: entry.user_id, name: entry.user_name,
-            entryId: entry.id, priority: entry.priority, position: entry.position })) };
+            entryId: entry.id, priority: entry.priority, position: entry.position,
+            estimatedWait: entry.estimated_wait_minutes })) };
       }) };
       if (JSON.stringify(updated) !== JSON.stringify(data)) {
         data = updated;

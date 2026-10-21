@@ -116,3 +116,27 @@ test('session guard validates the user, reveals the page, and installs one logou
   await links[0].fire('click');
   assert.equal(loggedOut, 1);
 });
+
+for (const file of ['user-dashboard.html', 'join-queue.html', 'queue-status.html']) {
+  test(file + ' displays API estimates without recalculating them', async () => {
+    // Deliberately differ from the old browser formula to catch a frontend fallback.
+    const service = { id: 1, name: 'Help', open: true, duration: 10, count: 2, estimatedWait: 37 };
+    const { ctx, elements, run } = page(file, {
+      currentUser: { id: 'alice', role: 'student' }, URLSearchParams,
+      Notifications: { all: () => [] },
+      QueueStore: { ready: Promise.resolve(), read: () => ({ services: [service] }),
+        active: () => ({ service, index: 1, user: { estimatedWait: 23 } }) }
+    });
+    if (elements.has('service-select')) elements.get('service-select').value = '1';
+    run('js/user.js');
+    await ctx.document.fire('DOMContentLoaded');
+    if (file === 'user-dashboard.html') {
+      assert.equal(elements.get('current-wait').textContent, '23 min');
+      assert.match(elements.get('dashboard-services').innerHTML, /about 37 min/);
+    } else if (file === 'join-queue.html') {
+      assert.equal(elements.get('estimated-wait').textContent, '37 minutes');
+    } else {
+      assert.match(elements.get('queue-status-content').innerHTML, />23 min</);
+    }
+  });
+}

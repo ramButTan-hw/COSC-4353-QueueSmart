@@ -11,6 +11,9 @@ from app.models import User, Service, QueueEntry
 from app.security import hash_password
 
 
+PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
+
+
 class Store:
     def __init__(self):
         # Callbacks run when a service is deleted, as hook(service).
@@ -165,16 +168,10 @@ class Store:
         self,
         service_id: int,
     ) -> list[QueueEntry]:
-        priority_order = {
-            "high": 0,
-            "medium": 1,
-            "low": 2,
-        }
-
         return sorted(
             self.get_queue(service_id),
             key=lambda entry: (
-                priority_order.get(
+                PRIORITY_ORDER.get(
                     entry.priority,
                     1,
                 ),

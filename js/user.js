@@ -6,19 +6,19 @@
   function render(){
     const data=QueueStore.read(),active=QueueStore.active(data);
     const set=(id,text)=>{const el=document.getElementById(id);if(el)el.textContent=text;};
-    set('current-queue-status',active?active.service.name:'Not in a queue');set('current-position',active?'#'+(active.index+1):'—');set('current-wait',active?active.index*active.service.duration+' min':'—');
-    const list=document.getElementById('dashboard-services');if(list)list.innerHTML=data.services.map(s=>`<div class="service-row"><div><div class="service-name">${esc(s.name)}</div><div class="small muted">${s.count} waiting • ${s.open?'Open':'Closed'} • about ${s.count*s.duration} min</div></div>${s.open?`<a class="btn btn-secondary" href="join-queue.html?service=${s.id}">Join</a>`:'<span class="badge">Closed</span>'}</div>`).join('');
+    set('current-queue-status',active?active.service.name:'Not in a queue');set('current-position',active?'#'+(active.index+1):'—');set('current-wait',active?active.user.estimatedWait+' min':'—');
+    const list=document.getElementById('dashboard-services');if(list)list.innerHTML=data.services.map(s=>`<div class="service-row"><div><div class="service-name">${esc(s.name)}</div><div class="small muted">${s.count} waiting • ${s.open?'Open':'Closed'} • about ${s.estimatedWait} min</div></div>${s.open?`<a class="btn btn-secondary" href="join-queue.html?service=${s.id}">Join</a>`:'<span class="badge">Closed</span>'}</div>`).join('');
     const summary=document.getElementById('notification-summary');if(summary)summary.innerHTML=Notifications.all().slice(0,3).map(n=>`<p>${esc(n.message)}<br><small>${date(n.ts)}</small></p>`).join('')||'<div class="empty">No notifications yet.</div>';
     const select=document.getElementById('service-select');
     if(select){
       const selected=select.value||new URLSearchParams(location.search).get('service')||'';
       select.innerHTML='<option value="">Choose a service</option>'+data.services.map(s=>`<option value="${s.id}">${esc(s.name)}${s.open?'':' (closed)'}</option>`).join('');select.value=selected;
       const s=data.services.find(s=>s.id===Number(select.value));
-      set('estimated-wait',s?s.count*s.duration+' minutes':'Select a service');set('people-ahead',s?s.count+' people currently waiting':'');
+      set('estimated-wait',s?s.estimatedWait+' minutes':'Select a service');set('people-ahead',s?s.count+' people currently waiting':'');
       const join=document.getElementById('join-btn');join.disabled=!s||!s.open||!!active;join.textContent=active?'Leave current queue before joining':s&&!s.open?'Queue closed':'Join Queue';
       document.getElementById('leave-btn').hidden=!active;
     }
-    const status=document.getElementById('queue-status-content');if(status)status.innerHTML=active?`<div class="card queue-hero"><span class="badge">${!active.service.open?'Queue paused':active.index===0?'You’re next':'Waiting'}</span><h2>${esc(active.service.name)}</h2><div>Your current position</div><div class="position">#${active.index+1}</div><div class="stat-value">${active.index*active.service.duration} min</div><p class="muted">${active.service.open?'Your queue updates when staff serves students.':'Staff has paused this queue.'}</p><button class="btn btn-danger" id="leave-status">Leave Queue</button></div>`:'<div class="card empty"><h2>No active queue</h2><p>You are not currently waiting for a service.</p><a class="btn btn-primary" href="join-queue.html">Join a Queue</a></div>';
+    const status=document.getElementById('queue-status-content');if(status)status.innerHTML=active?`<div class="card queue-hero"><span class="badge">${!active.service.open?'Queue paused':active.index===0?'You’re next':'Waiting'}</span><h2>${esc(active.service.name)}</h2><div>Your current position</div><div class="position">#${active.index+1}</div><div class="stat-value">${active.user.estimatedWait} min</div><p class="muted">${active.service.open?'Your queue updates when staff serves students.':'Staff has paused this queue.'}</p><button class="btn btn-danger" id="leave-status">Leave Queue</button></div>`:'<div class="card empty"><h2>No active queue</h2><p>You are not currently waiting for a service.</p><a class="btn btn-primary" href="join-queue.html">Join a Queue</a></div>';
 
   }
   document.addEventListener('DOMContentLoaded',async()=>{

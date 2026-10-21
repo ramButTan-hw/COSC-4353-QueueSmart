@@ -6,6 +6,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+# Share the calculation with the main API while keeping this prototype runnable.
+if __package__:
+    from .wait_time import estimate_wait_minutes
+else:
+    from wait_time import estimate_wait_minutes
+
 app = FastAPI(title="QueueSmart - Wait-Time Estimation API")
 
 app.add_middleware(
@@ -67,16 +73,6 @@ services_db[_seed_id] = Service(
 
 
 # ---------- Core rule-based wait-time estimation ----------
-
-def estimate_wait_minutes(position: int, expected_duration_minutes: int) -> int:
-    """
-    Rule: wait time = position x expected duration per person.
-    Position is 1-based (1 = next in line). Returns 0 for position <= 0.
-    """
-    if position <= 0:
-        return 0
-    return position * expected_duration_minutes
-
 
 def service_entries(service_id: str) -> List[QueueEntry]:
     return [e for e in queue_db if e.service_id == service_id]

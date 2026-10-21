@@ -23,7 +23,8 @@ from app.deps import get_current_user, require_staff
 from app.errors import ApiError
 from app.models import QueueEntry, Service, User
 from app.schemas import QueueEntryOut, QueueOut
-from app.store import db
+from app.store import db, PRIORITY_ORDER
+from app.wait_time import estimate_wait_minutes
 
 
 router = APIRouter(prefix="/queues", tags=["queues"])
@@ -39,7 +40,8 @@ def queue_summaries(user: User = Depends(get_current_user)):
             entries = [_entry_out(entry, index) for index, entry in enumerate(ordered, 1)
                        if user.role == config.ROLE_STAFF or entry.user_id == user.id]
             results.append({"service_id": service.id, "count": len(ordered),
-                            "open": service.open, "entries": entries})
+                            "open": service.open, "entries": entries,
+                            "estimated_wait_minutes": _join_wait(service)})
         return results
 
 
@@ -56,6 +58,13 @@ def _find_service(service_id: int) -> Service:
     return service
 
 
+def _join_wait(service: Service) -> int:
+    # A new entry follows existing entries of equal or higher priority.
+    ahead = sum(PRIORITY_ORDER[entry.priority] <= PRIORITY_ORDER[service.priority]
+                for entry in db.get_queue(service.id))
+    return estimate_wait_minutes(ahead + 1, service.duration)
+
+
 def _entry_out(
     entry: QueueEntry,
     position: int,
@@ -70,6 +79,7 @@ def _entry_out(
         priority=entry.priority,
         joined_at=entry.joined_at,
         position=position,
+        estimated_wait_minutes=estimate_wait_minutes(position, db.get_service(entry.service_id).duration),
     )
 
 
@@ -86,6 +96,7 @@ def _queue_out(service: Service) -> QueueOut:
         service_name=service.name,
         open=service.open,
         count=len(entries),
+        estimated_wait_minutes=_join_wait(service),
         entries=entries,
     )
 
@@ -194,9 +205,9 @@ def view_queue(
     service_id: int,
     user: User = Depends(require_staff),
 ):
-    service = _find_service(service_id)
-
-    return _queue_out(service)
+    with db.activity.lock:
+        service = _find_service(service_id)
+        return _queue_out(service)
 
 
 @router.post(
