@@ -85,7 +85,8 @@ test('A2 queue hooks generate backend notifications and history across separate 
   assert.equal(bob.Notifications.all().length, 2);
   const staff = await browser('staff');
   await staff.QueueStore.ready;
-  assert.equal(staff.Notifications.all().length, 1);
+  await staff.Notifications.refresh();  // staff alerts now come from the server, one per student who joined
+  assert.deepEqual([...staff.Notifications.all().map(n => n.message)], ['New student in Password Reset', 'New student in Password Reset']);
   await staff.QueueStore.change(1, 'down', alice.currentUser.id);
   await bob.QueueStore.refresh();
   assert.equal(bob.QueueStore.active().user.estimatedWait, 10);
@@ -102,12 +103,21 @@ test('A2 queue hooks generate backend notifications and history across separate 
   assert(!alice.Notifications.all().some(n => n.message.includes("You've been served")));
   await alice.QueueStore.change(1, 'leave', alice.currentUser.id);
   assert.equal((await alice.QueueBackend.history())[0].outcome, 'Left queue');
+  await staff.Notifications.refresh();
   assert(staff.Notifications.all().some(n => n.message === 'A student left the Password Reset queue'));
   await alice.Notifications.markAllRead();
   assert((await alice.QueueBackend.notifications()).every(n => n.read));
   await alice.Notifications.clear();
   assert.equal(alice.Notifications.all().length, 0);
-  assert.equal((await bob.QueueBackend.notifications()).length, 3);
+  // newest first: served, queue reopened, queue closed, reached position 1 (second reminder), position 2 (first reminder), joined
+  assert.deepEqual([...(await bob.QueueBackend.notifications()).map(n => n.message)], [
+    "You've been served for Password Reset",
+    'Password Reset queue is now open.',
+    'Password Reset queue is now closed.',
+    "You're next for Password Reset. Please head to the help desk.",
+    "You're nearly next for Password Reset. Please head to the help desk.",
+    'You joined Password Reset at position 2.'
+  ]);
   assert.equal((await alice.QueueBackend.history()).length, 1);
 });
 

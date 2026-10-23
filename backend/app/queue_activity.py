@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 from copy import deepcopy
 
+from app import config
 from app.store import db
 
 
@@ -35,16 +36,33 @@ def apply(events):
         db.activity.apply(events[offset:offset + 1000])
 
 
+def staff_alert(entry, kind, message):
+    """One notification per staff account, stored on the server so it reaches staff in any browser."""
+    for user in list(db.users.values()):
+        if user.role == config.ROLE_STAFF:
+            db.activity.notifications.add_to(user.id, config.ROLE_STAFF, visit_id(entry), kind, message, "info")
+
+
+def queue_toggled(service):
+    """Tell every student waiting in this queue that it was just opened or closed."""
+    for entry in db.ordered_queue(service.id):
+        db.activity.notifications.queue_state(db.activity.history.records[visit_id(entry)], service.open)
+
+
 def joined(service, entry):
     ordered = db.ordered_queue(service.id)
     apply([{"type": "joined", "participationId": visit_id(entry), "userId": entry.user_id,
             "serviceId": service.id, "serviceName": service.name,
             "position": ordered.index(entry) + 1, "queueOpen": service.open}, *positions(service)])
     db.activity.history.records[visit_id(entry)]["joinedAt"] = int(entry.joined_at * 1000)
+    staff_alert(entry, "student_joined", f"New student in {service.name}")
 
 
 def completed(service, entries, outcome):
     apply([{"type": outcome, "participationId": visit_id(entry)} for entry in entries] + positions(service))
+    if outcome == "left":
+        for entry in entries:
+            staff_alert(entry, "student_left", f"A student left the {service.name} queue")
     if outcome in ("served", "removed"):
         for entry in entries:
             record = db.activity.history.records[visit_id(entry)]

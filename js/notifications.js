@@ -94,7 +94,7 @@
   }
 
   async function markAllRead() {
-    try { if (getRole() === 'student') await QueueBackend.markAllRead(); } catch (error) { report(error); return; }
+    try { if (getRole()) await QueueBackend.markAllRead(); } catch (error) { report(error); return; }
     items = load();
     items.forEach(function (n) { if (visible(n)) n.read = true; });
     save(); render();
@@ -102,7 +102,7 @@
   }
 
   async function clear(all) {
-    try { if (getRole() === 'student') await QueueBackend.clearNotifications(); } catch (error) { report(error); return; }
+    try { if (getRole()) await QueueBackend.clearNotifications(); } catch (error) { report(error); return; }
     items = load();
     items = all ? [] : items.filter(function (n) { return !visible(n); });
     save(); render();
@@ -114,7 +114,7 @@
   function refresh() {
     if (refreshPending) return refreshPending;
     refreshPending = (async function () {
-      if (getRole() === 'student') {
+      if (getRole()) { // students and staff both read their own notifications from the server
         var previous = backendItems;
         backendItems = await QueueBackend.notifications();
         backendItems.filter(function (n) { return !n.read && !previous.some(function (old) { return old.id === n.id; }); }).forEach(toast);
