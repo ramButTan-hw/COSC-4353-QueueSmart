@@ -258,7 +258,10 @@ def open_queue(
     with queue_activity.transaction():
         service = _find_service(service_id)
 
+        changed = not service.open
         service.open = True
+        if changed:
+            queue_activity.queue_toggled(service)
         queue_activity.apply(queue_activity.positions(service))
 
         return _queue_out(service)
@@ -275,7 +278,10 @@ def close_queue(
     with queue_activity.transaction():
         service = _find_service(service_id)
 
+        changed = service.open
         service.open = False
+        if changed:
+            queue_activity.queue_toggled(service)
         queue_activity.apply(queue_activity.positions(service))
 
         return _queue_out(service)

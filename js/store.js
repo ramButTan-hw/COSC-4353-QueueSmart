@@ -43,8 +43,6 @@
     else if (action === 'remove') await Api.del(route + '/members/' + encodeURIComponent(userId));
     else if (action === 'up' || action === 'down') await Api.post(route + '/move', { user_id: userId, direction: action });
     else throw Error('Unknown queue action.');
-    if (action === 'join') notify('staff', `New student in ${service.name}`, 'info');
-    if (action === 'leave') notify('staff', `A student left the ${service.name} queue`, 'info');
     // An already-running poll may predate this mutation. Finish it, then fetch fresh state.
     if (pending) await pending.catch(() => {});
     await refresh().catch(error => console.warn(error.message));

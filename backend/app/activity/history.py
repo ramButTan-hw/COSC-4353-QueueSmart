@@ -34,7 +34,7 @@ class History:
         record = {
             "id": event.participation_id, "userId": event.user_id, "serviceId": event.service_id,
             "serviceName": event.service_name, "joinedAt": self.clock(), "completedAt": None,
-            "outcome": "Waiting", "closeNotified": False,
+            "outcome": "Waiting", "closeNotified": False, "nextNotified": False,
             "position": event.position, "queueOpen": event.queue_open,
         }
         self.records[record["id"]] = record
@@ -63,7 +63,7 @@ class History:
             if end is not None and record["joinedAt"] >= end:
                 continue
             public = {key: value for key, value in record.items()
-                      if key not in {"closeNotified", "position", "queueOpen"}}
+                      if key not in {"closeNotified", "nextNotified", "position", "queueOpen"}}
             public["date"] = record["completedAt"] if record["completedAt"] is not None else record["joinedAt"]
             results.append(public)
         return results

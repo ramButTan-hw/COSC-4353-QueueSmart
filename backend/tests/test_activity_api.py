@@ -98,13 +98,16 @@ def test_pause_move_and_priority_preserve_timestamps_and_single_reminder(client,
     client.post('/queues/1/close', headers=users['staff'])
     assert client.post('/queues/1/serve-next', headers=users['staff']).status_code == 409
     client.delete('/queues/1/leave', headers=users['bob'])
-    assert len(client.get('/api/notifications', headers=users['charlie']).json()) == 1
+    # while paused charlie hears the queue closed and that he moved up, but the "head to the help desk" reminder waits
+    assert [n['kind'] for n in client.get('/api/notifications', headers=users['charlie']).json()] == ['moved', 'queue_closed', 'joined']
     client.post('/queues/1/open', headers=users['staff'])
+    assert len([n for n in client.get('/api/notifications', headers=users['charlie']).json() if n['kind'] == 'close']) == 1
     moved = client.post('/queues/1/move', headers=users['staff'], json={'user_id': 'alice', 'direction': 'down'})
     assert moved.status_code == 200
     assert [e['user_id'] for e in moved.json()['entries']] == ['charlie', 'alice']
     assert moved.json()['entries'][1]['joined_at'] == first['joined_at']
-    assert len([n for n in client.get('/api/notifications', headers=users['charlie']).json() if n['kind'] == 'close']) == 1
+    # one reminder per level: "nearly next" at position 2 (sent on opening), then "next" when he reaches position 1
+    assert len([n for n in client.get('/api/notifications', headers=users['charlie']).json() if n['kind'] == 'close']) == 2
     db.find_queue_entry(1, 'alice').priority = 'high'
     db.find_queue_entry(1, 'charlie').priority = 'low'
     assert client.post('/queues/1/move', headers=users['staff'], json={'user_id': 'alice', 'direction': 'down'}).status_code == 409

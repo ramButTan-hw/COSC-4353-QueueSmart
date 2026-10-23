@@ -35,9 +35,13 @@ class Activity:
                     if event.type == "joined":
                         self.notifications.joined(record, event.position)
                     if event.type in ("joined", "position"):
+                        old_position = record["position"]
                         record["position"] = event.position
                         record["queueOpen"] = event.queue_open
-                        self.notifications.close(record, event.position, event.queue_open)
+                        reminded = self.notifications.close(record, event.position, event.queue_open)
+                        # A move that already produced a "head to the help desk" reminder needs no second message.
+                        if event.type == "position" and old_position != event.position and not reminded:
+                            self.notifications.moved(record, event.position)
                     else:
                         self.history.complete(record, event.type)
             except Exception:

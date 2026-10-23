@@ -45,14 +45,15 @@ def test_join_creates_targeted_notification_and_exact_history_timestamp():
     assert activity.notifications.list("alice")[0]["read"] is False
 
 
-def test_near_front_message_waits_for_open_queue_and_fires_once_per_visit():
+def test_near_front_message_waits_for_open_queue_and_fires_once_per_level():
     activity = Activity()
     activity.apply([join(), position(3), position(2, False)])
-    assert len(activity.notifications.list("alice")) == 1
-    activity.apply([position(2), position(1), position(4), position(2)])
-    reminders = [n for n in activity.notifications.list("alice") if n["kind"] == "close"]
-    assert len(reminders) == 1
-    assert "nearly next" in reminders[0]["message"]
+    notices = activity.notifications.list("alice")
+    assert [n["kind"] for n in notices] == ["moved", "moved", "joined"]  # no reminder while the queue is closed
+    activity.apply([position(2), position(1), position(4), position(2), position(1)])
+    reminders = [n["message"] for n in reversed(activity.notifications.list("alice")) if n["kind"] == "close"]
+    assert len(reminders) == 2  # once at position 2, once more at position 1, never again
+    assert "nearly next" in reminders[0] and "You're next" in reminders[1]
     activity.apply([join(participationId="b", userId="bob", position=1)])
     assert "You're next" in activity.notifications.list("bob")[0]["message"]
 
@@ -124,7 +125,8 @@ def test_clearing_messages_does_not_retrigger_near_front_reminder():
     activity.apply([join(position=1)])
     activity.notifications.clear("alice")
     activity.apply([position(4), position(1)])
-    assert activity.notifications.list("alice") == []
+    assert [n["kind"] for n in activity.notifications.list("alice")] == ["moved", "moved"]  # position news, no reminder
+    activity.notifications.clear("alice")
     activity.apply([{"type": "left", "participationId": "visit-a"},
                     join(participationId="next-visit", position=2)])
     assert sorted(n["kind"] for n in activity.notifications.list("alice")) == ["close", "joined"]
