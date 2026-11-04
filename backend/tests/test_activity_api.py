@@ -2,6 +2,7 @@
 from copy import deepcopy
 import pytest
 from fastapi.testclient import TestClient
+from app import database
 from app.errors import ApiError
 from app.main import app
 from app.models import User
@@ -156,6 +157,7 @@ def test_invalid_dates_and_reset(client, users):
     for query in ('from=bad', 'from=2026-02-30', 'from=2026-10-17&to=2026-10-16'):
         assert client.get('/api/history?' + query, headers=users['alice']).status_code == 422
     db.reset()
+    database.reset_database()  # accounts live in the database now, so a full reset clears them too
     assert db.activity.history.records == {} and db.queues == {}
     assert client.get('/api/history', headers=users['alice']).status_code == 401
 

@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
-from app import config, queue_activity
+from app import config, queue_activity, users
 from app.deps import get_current_user, require_staff
 from app.errors import ApiError
 from app.models import QueueEntry, Service, User
@@ -69,7 +69,7 @@ def _entry_out(
     entry: QueueEntry,
     position: int,
 ) -> QueueEntryOut:
-    user = db.get_user(entry.user_id)
+    user = users.lookup(entry.user_id)
 
     return QueueEntryOut(
         id=entry.id,

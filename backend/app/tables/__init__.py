@@ -20,3 +20,5 @@ Example of a table module (app/tables/example.py):
         name: Mapped[str] = mapped_column(String(100), nullable=False)
         owner_id: Mapped[str] = mapped_column(ForeignKey("user_credentials.id", ondelete="CASCADE"))
 """
+
+from app.tables import credentials, profile  # noqa: E402,F401

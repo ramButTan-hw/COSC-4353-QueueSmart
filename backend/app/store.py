@@ -5,10 +5,8 @@ here so the whole back end reads and writes the same objects. Everything resets 
 server restarts.
 """
 
-from app import config
 from app.activity import Activity
 from app.models import User, Service, QueueEntry
-from app.security import hash_password
 
 
 PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
@@ -23,9 +21,6 @@ class Store:
         self.reset()
 
     def reset(self):
-        # --- users ---
-        self.users: dict[str, User] = {}
-        self._email_index: dict[str, str] = {}
         self.activity = Activity()
 
         # --- services ---
@@ -37,18 +32,20 @@ class Store:
         self._next_queue_entry_id = 1
 
     # --- users ---
+    # Accounts live in the database now (app/users.py). These three methods remain so older code and tests that
+    # call db.add_user(...) / db.get_user(...) keep working.
 
     def add_user(self, user: User) -> User:
-        self.users[user.id] = user
-        self._email_index[user.email] = user.id
-        return user
+        from app import users
+        return users.save(user)
 
     def get_user(self, user_id: str):
-        return self.users.get(user_id)
+        from app import users
+        return users.lookup(user_id)
 
     def get_user_by_email(self, email: str):
-        user_id = self._email_index.get(email.strip().lower())
-        return self.users.get(user_id) if user_id else None
+        from app import users
+        return users.lookup_by_email(email)
 
     # --- services ---
 
@@ -208,37 +205,6 @@ class Store:
 
 
 db = Store()
-
-
-def seed_demo_users(store: Store = db):
-    """Demo accounts so the UI can be tried right after startup."""
-
-    demo = [
-        (
-            "11111111-1111-4111-8111-111111111111",
-            "Demo Student",
-            "student@uh.edu",
-            config.ROLE_STUDENT,
-        ),
-        (
-            "22222222-2222-4222-8222-222222222222",
-            "Demo Staff",
-            "admin@uh.edu",
-            config.ROLE_STAFF,
-        ),
-    ]
-
-    for user_id, name, email, role in demo:
-        if store.get_user_by_email(email) is None:
-            store.add_user(
-                User(
-                    user_id,
-                    name,
-                    email,
-                    hash_password("Password1"),
-                    role,
-                )
-            )
 
 
 def seed_demo_services(store: Store = db):
