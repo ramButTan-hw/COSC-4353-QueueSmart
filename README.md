@@ -1,6 +1,6 @@
 # QueueSmart — COSC 4353
 
-A queue management application with a Python/FastAPI backend and an HTML, CSS, and JavaScript frontend. Data is stored in memory and resets when the server restarts.
+A queue management application with a Python/FastAPI backend and an HTML, CSS, and JavaScript frontend. The backend talks to a database through SQLAlchemy (SQLite by default). Until a module's tables are added, its data is still kept in memory and resets when the server restarts.
 
 ## Setup
 
@@ -13,6 +13,27 @@ uv run uvicorn app.main:app --reload --port 8001
 ```
 
 Open [QueueSmart](http://localhost:8001). API documentation is available at [localhost:8001/docs](http://localhost:8001/docs).
+
+## Database
+
+The database is set up in `backend/app/database.py`. By default it is a SQLite file, `backend/queuesmart.db`, which is created on first start and ignored by git. There is nothing to install and no Docker needed. Delete the file to start from an empty database.
+
+To use another database, set `DATABASE_URL` before starting the server. For PostgreSQL:
+
+```sh
+cd backend
+uv sync --frozen --extra postgres
+DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/queuesmart uv run uvicorn app.main:app --port 8001
+```
+
+Keep real passwords out of git: set the variable in your shell or a local `.env` file that is not committed.
+
+Adding a table:
+
+1. Create `backend/app/tables/<module>.py` with your tables as subclasses of `Base`, and import it in `backend/app/tables/__init__.py`. Give every `CheckConstraint` a `name=`. SQLite ignores `VARCHAR(n)` lengths, so enforce length limits with a `CheckConstraint` such as `length(name) BETWEEN 1 AND 100`.
+2. In a router, take `session: Session = Depends(get_session)` and call `commit(session)` yourself at the end. Work that is not committed is rolled back, and a violated unique or foreign-key constraint becomes a 409.
+3. Demo data goes in a function decorated with `@register_seeder`. It runs at startup and must be safe to run every time.
+4. Tests get an empty in-memory database automatically (`tests/conftest.py`), so they never touch the real file.
 
 ## Demo accounts
 

@@ -1,14 +1,18 @@
 [project]
 name = "queuesmart-backend"
 version = "0.1.0"
-description = "QueueSmart back end (Assignment 3): FastAPI, in-memory data"
+description = "QueueSmart back end: FastAPI and SQLAlchemy (SQLite by default)"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "pyjwt>=2.8",
     "pwdlib[argon2]>=0.2",
+    "sqlalchemy>=2.0",
 ]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.1"]
 
 [dependency-groups]
 dev = [
