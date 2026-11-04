@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app import database
 from app.main import app
 from app.models import User
 from app.security import hash_password
@@ -9,8 +10,9 @@ from app.store import db
 
 @pytest.fixture(autouse=True)
 def clean_store():
-    """Every test starts with an empty in-memory store."""
+    """Every test starts with an empty in-memory store and an empty database."""
     db.reset()
+    database.reset_database()
     yield
     db.reset()
 

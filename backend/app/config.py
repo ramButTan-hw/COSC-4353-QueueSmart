@@ -4,11 +4,18 @@ Values are read at import time. Other modules should access them as `config.NAME
 (not `from app.config import NAME`) so tests can override them.
 """
 import os
+from pathlib import Path
 
 # Signing key for JWTs. Set JWT_SECRET in the environment for anything beyond local testing.
 JWT_SECRET = os.environ.get("JWT_SECRET", "dev-only-secret-change-me-before-real-use-0123456789")
 JWT_ALGORITHM = "HS256"
 TOKEN_TTL_SECONDS = int(os.environ.get("JWT_EXPIRES_MINUTES", "60")) * 60
+
+# Where the database lives. Any SQLAlchemy URL works, for example
+#   sqlite:///queuesmart.db                          (default: a file in backend/, nothing to install)
+#   postgresql+psycopg://user:password@localhost/queuesmart   (needs: uv sync --extra postgres)
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{BACKEND_DIR / 'queuesmart.db'}")
 
 # Front-end origins allowed to call the API from the browser (CORS).
 CORS_ORIGINS = [
