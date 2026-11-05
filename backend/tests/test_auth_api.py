@@ -9,7 +9,11 @@ from app.errors import ApiError
 from app.main import app
 from app.models import User
 from app.security import create_access_token
-from app.store import db, seed_demo_users
+from sqlalchemy import delete, func, select
+
+from app import database
+from app.store import db
+from app.tables.credentials import UserCredentials
 from tests.conftest import VALID, bearer
 
 
@@ -170,7 +174,9 @@ def test_me_with_an_expired_token_is_unauthorized(client, registered):
 
 
 def test_token_for_a_user_that_no_longer_exists_is_rejected(client, token):
-    db.reset()  # like a server restart: accounts are gone but the old token still verifies
+    with database.SessionLocal() as session:  # the account is deleted but the old token still verifies
+        session.execute(delete(UserCredentials))
+        session.commit()
     assert client.get("/auth/me", headers=bearer(token)).status_code == 401
 
 
@@ -200,9 +206,10 @@ def test_startup_seeds_demo_student_and_staff():
 
 
 def test_seeding_twice_does_not_duplicate_accounts():
-    seed_demo_users()
-    seed_demo_users()
-    assert len(db.users) == 2
+    database.init_db()
+    database.init_db()
+    with database.SessionLocal() as session:
+        assert session.scalar(select(func.count()).select_from(UserCredentials)) == 2
 
 
 # ---------- app-level behaviour ----------
