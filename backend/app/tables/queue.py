@@ -48,3 +48,51 @@ class QueueTable(Base):
         nullable=False,
         default=_now,
     )
+
+class QueueEntryTable(Base):
+    __tablename__ = "queue_entry"
+    __table_args__ = (
+        CheckConstraint(
+            "position >= 1",
+            name="position_positive",
+        ),
+        CheckConstraint(
+            "status IN ('waiting', 'served', 'canceled')",
+            name="status_valid",
+        ),
+        {"sqlite_autoincrement": True},
+    )
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    queue_id: Mapped[int] = mapped_column(
+        ForeignKey("queue.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("user_credentials.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    position: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+
+    join_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_now,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(8),
+        nullable=False,
+        default="waiting",
+    )
