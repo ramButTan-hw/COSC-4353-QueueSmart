@@ -1,7 +1,11 @@
 """Server-side notifications for position changes, queue open/close, and staff alerts."""
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import delete
+
+from app import database
 from app.main import app
+from app.tables.credentials import UserCredentials
 from app.models import User
 from app.security import create_access_token
 from app.store import db, seed_demo_services
@@ -199,8 +203,9 @@ def test_serving_or_removing_does_not_create_more_staff_alerts(client, users):
 
 
 def test_joining_still_works_when_there_are_no_staff_accounts(client, users):
-    for name in ("staff", "staff2"):
-        del db.users[name]
+    with database.SessionLocal() as session:
+        session.execute(delete(UserCredentials).where(UserCredentials.id.in_(["staff", "staff2"])))
+        session.commit()
     join(client, users, "a")
     assert any(m.startswith("You joined") for m in messages(client, users, "a"))
 

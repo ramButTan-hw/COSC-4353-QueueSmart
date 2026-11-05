@@ -2,7 +2,7 @@
 from contextlib import contextmanager
 from copy import deepcopy
 
-from app import config
+from app import config, users
 from app.store import db
 
 
@@ -38,9 +38,8 @@ def apply(events):
 
 def staff_alert(entry, kind, message):
     """One notification per staff account, stored on the server so it reaches staff in any browser."""
-    for user in list(db.users.values()):
-        if user.role == config.ROLE_STAFF:
-            db.activity.notifications.add_to(user.id, config.ROLE_STAFF, visit_id(entry), kind, message, "info")
+    for staff_id in users.lookup_staff_ids():
+        db.activity.notifications.add_to(staff_id, config.ROLE_STAFF, visit_id(entry), kind, message, "info")
 
 
 def queue_toggled(service):

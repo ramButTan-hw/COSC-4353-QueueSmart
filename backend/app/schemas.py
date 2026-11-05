@@ -5,6 +5,10 @@ Rules (same limits as the A2 front end where they overlap):
   email     required, trimmed, valid format, at most 254 characters, stored lowercase
   password  register: 8-128 characters with at least one letter and one number
             login:    required, at most 128 characters
+Profile:
+  full_name   required, trimmed, 1-100 characters (same rule as the registration name)
+  phone       optional, 7-30 characters with at least 7 digits; digits, spaces and + ( ) - . only
+  preferences optional text, trimmed, 1-500 characters
 Services:
   name        required, trimmed, 1-100 characters, unique (case-insensitive; checked in the router)
   description required, trimmed, 1-500 characters
@@ -25,13 +29,24 @@ PASSWORD_MAX = 128
 DESCRIPTION_MAX = 500
 DURATION_MIN = 1
 DURATION_MAX = 480
+PHONE_MAX = 30
+PREFERENCES_MAX = 500
+PHONE_RE = re.compile(r"^[0-9+()\-. ]{7,30}$")
 
 Email = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True, min_length=1, max_length=EMAIL_MAX)]
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=NAME_MAX)]
+Phone = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=PHONE_MAX)]
+Preferences = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=PREFERENCES_MAX)]
 
 
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+def _check_phone(value: str | None) -> str | None:
+    if value is not None and (not PHONE_RE.match(value) or sum(c.isdigit() for c in value) < 7):
+        raise ValueError("Enter a valid phone number (at least 7 digits; digits, spaces and + ( ) - . only).")
+    return value
 
 
 def _check_email(value: str) -> str:
@@ -44,11 +59,18 @@ class RegisterRequest(_Strict):
     name: Name
     email: Email
     password: Annotated[str, StringConstraints(min_length=PASSWORD_MIN, max_length=PASSWORD_MAX)]
+    phone: Phone | None = None
+    preferences: Preferences | None = None
 
     @field_validator("email")
     @classmethod
     def _email_format(cls, value: str) -> str:
         return _check_email(value)
+
+    @field_validator("phone")
+    @classmethod
+    def _phone_format(cls, value: str | None) -> str | None:
+        return _check_phone(value)
 
     @field_validator("password")
     @classmethod
@@ -80,6 +102,32 @@ class TokenOut(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user: UserOut
+
+
+class ProfileOut(BaseModel):
+    user_id: str
+    email: str
+    full_name: str
+    phone: str | None
+    preferences: str | None
+
+
+class ProfileUpdate(_Strict):
+    """Body for PATCH /profile: send only what changes. phone and preferences may be null to clear them."""
+    full_name: Name = None
+    phone: Phone | None = None
+    preferences: Preferences | None = None
+
+    @field_validator("phone")
+    @classmethod
+    def _phone_format(cls, value: str | None) -> str | None:
+        return _check_phone(value)
+
+    @model_validator(mode="after")
+    def _something_to_change(self):
+        if not self.model_fields_set:
+            raise ValueError("Send at least one field to change.")
+        return self
 
 
 class ServiceIn(_Strict):

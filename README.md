@@ -1,6 +1,6 @@
 # QueueSmart — COSC 4353
 
-A queue management application with a Python/FastAPI backend and an HTML, CSS, and JavaScript frontend. The backend talks to a database through SQLAlchemy (SQLite by default). Until a module's tables are added, its data is still kept in memory and resets when the server restarts.
+A queue management application with a Python/FastAPI backend and an HTML, CSS, and JavaScript frontend. The backend talks to a database through SQLAlchemy (SQLite by default). User accounts and profiles are saved in the database and survive restarts; services, queues, notifications and history are still kept in memory until their tables are added.
 
 ## Setup
 
@@ -16,17 +16,13 @@ Open [QueueSmart](http://localhost:8001). API documentation is available at [loc
 
 ## Database
 
-The database is set up in `backend/app/database.py`. By default it is a SQLite file, `backend/queuesmart.db`, which is created on first start and ignored by git. There is nothing to install and no Docker needed. Delete the file to start from an empty database.
+The database is set up in `backend/app/database.py`. By default it is a SQLite file, `backend/queuesmart.db`, which is created on first start and ignored by git. There is nothing to install and no Docker needed. Delete the file to start from an empty database. Tables are created at startup but not migrated, so if you pull a change that alters a table and the app complains about missing columns, delete the file and let it rebuild.
 
-To use another database, set `DATABASE_URL` before starting the server. For PostgreSQL:
+To use a different SQLite file, set `DATABASE_URL` before starting the server, for example `DATABASE_URL=sqlite:///other.db`.
 
-```sh
-cd backend
-uv sync --frozen --extra postgres
-DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/queuesmart uv run uvicorn app.main:app --port 8001
-```
+Tables inside the db: user_credentials (columns: id, email, role, password_hash) and user_profile (columns: user_id, email, full_name, phone, prferences, updated at)
 
-Keep real passwords out of git: set the variable in your shell or a local `.env` file that is not committed.
+The tables have 2 seeded accounts: student and staff
 
 Adding a table:
 
