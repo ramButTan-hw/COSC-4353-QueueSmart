@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
-from app import config, queue_activity, users
+from app import config, queue_activity, queue_database, users
 from app.deps import get_current_user, require_staff
 from app.errors import ApiError
 from app.models import QueueEntry, Service, User
@@ -164,6 +164,18 @@ def join_queue(
         )
 
         queue_activity.joined(service, entry)
+
+        queue_database.add_entry(
+            service,
+            entry,
+            position,
+        )
+
+        queue_database.sync_positions(
+            service.id,
+            ordered,
+        )
+
         return _entry_out(
             entry,
             position,
@@ -194,6 +206,18 @@ def leave_queue(
             )
 
         queue_activity.completed(db.get_service(service_id), [entry], "left")
+
+        queue_database.finish_entry(
+            service_id,
+            user.id,
+            "canceled",
+        )
+
+        queue_database.sync_positions(
+            service_id,
+            db.ordered_queue(service_id),
+        )
+
         return Response(status_code=204)
 
 
@@ -241,6 +265,18 @@ def serve_next(
         )
 
         queue_activity.completed(service, [next_entry], "served")
+
+        queue_database.finish_entry(
+            service.id,
+            next_entry.user_id,
+            "served"
+        )
+
+        queue_database.sync_positions(
+            service.id,
+            db.ordered_queue(service.id),
+        )
+
         return _entry_out(
             next_entry,
             1,
@@ -263,6 +299,7 @@ def open_queue(
         if changed:
             queue_activity.queue_toggled(service)
         queue_activity.apply(queue_activity.positions(service))
+        queue_database.set_queue_status(service)
 
         return _queue_out(service)
 
@@ -283,6 +320,7 @@ def close_queue(
         if changed:
             queue_activity.queue_toggled(service)
         queue_activity.apply(queue_activity.positions(service))
+        queue_database.set_queue_status(service)
 
         return _queue_out(service)
 
@@ -295,6 +333,15 @@ def remove_member(service_id: int, user_id: str, staff: User = Depends(require_s
         if entry is None:
             raise ApiError(404, "not_found", "Student is not in this queue.")
         queue_activity.completed(service, [entry], "removed")
+        queue_database.finish_entry(
+            service_id,
+            user_id,
+            "canceled"
+        )
+        queue_database.sync_positions(
+            service_id,
+            db.ordered_queue(service_id),
+        )
     return Response(status_code=204)
 
 
@@ -320,4 +367,8 @@ def move_member(service_id: int, body: MoveRequest, staff: User = Depends(requir
             for rank, entry in enumerate(ordered):
                 entry.order = rank
             queue_activity.apply(queue_activity.positions(service))
+            queue_database.sync_positions(
+                service_id,
+                db.ordered_queue(service_id),
+            )
         return _queue_out(service)
