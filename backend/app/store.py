@@ -1,11 +1,10 @@
-"""In-memory data store shared by every module (no database in A3).
+"""Shared runtime store. Services and queues remain in memory pending their A4 integration.
 
-Other modules (services, queues, history, notifications) should add their own collections
-here so the whole back end reads and writes the same objects. Everything resets when the
-server restarts.
+Accounts and activity are database-backed. reset() clears runtime caches, not SQL rows;
+use database.reset_database() only when a test explicitly needs an empty database.
 """
 
-from app.activity import Activity
+from app.activity.persistence import PersistentActivity
 from app.models import User, Service, QueueEntry
 
 
@@ -21,7 +20,7 @@ class Store:
         self.reset()
 
     def reset(self):
-        self.activity = Activity()
+        self.activity = PersistentActivity()
 
         # --- services ---
         self.services: dict[int, Service] = {}

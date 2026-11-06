@@ -6,15 +6,26 @@ const vm = require('node:vm');
 const { randomUUID } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
+const os = require('node:os');
 const { backend, python } = require('../scripts/backend.cjs');
 
-async function startServer(t) {
-  const child = spawn(python, ['-u', '-m', 'tests.serve_app'], { cwd: backend, stdio: ['ignore', 'pipe', 'pipe'] });
-  t.after(() => new Promise(resolve => {
-    if (child.exitCode !== null) return resolve();
+async function startServer(t, databaseUrl) {
+  const directory = databaseUrl ? null : fs.mkdtempSync(path.join(os.tmpdir(), 'queuesmart-'));
+  databaseUrl ||= 'sqlite:///' + path.join(directory, 'test.db').replaceAll('\\', '/');
+  const child = spawn(python, ['-u', '-m', 'tests.serve_app'], {
+    cwd: backend, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, DATABASE_URL: databaseUrl }
+  });
+  let stopping, serverBase;
+  const stop = () => stopping ||= new Promise(resolve => {
+    if (child.exitCode !== null || child.signalCode !== null) return resolve();
     child.once('exit', resolve);
-    child.kill('SIGTERM');
-  }));
+    if (serverBase) fetch(serverBase + '/__test/shutdown', { method: 'POST' }).catch(() => child.kill('SIGTERM'));
+    else child.kill('SIGTERM');
+  });
+  t.after(async () => {
+    await stop();
+    if (directory) fs.rmSync(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  });
   let errors = '';
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', chunk => { errors += chunk; });
@@ -30,14 +41,15 @@ async function startServer(t) {
     child.once('error', error => { clearTimeout(timeout); reject(error); });
   });
   for (let attempt = 0; attempt < 100; attempt++) {
-    try { if ((await fetch(base + '/health')).ok) return base; } catch (_) {}
+    try { if ((await fetch(base + '/health')).ok) { serverBase = base; return { base, stop, databaseUrl }; } } catch (_) {}
     await new Promise(resolve => setTimeout(resolve, 50));
   }
   throw Error('FastAPI did not become ready: ' + errors);
 }
 
-async function setup(t, disk = new Map()) {
-  const base = await startServer(t);
+async function setup(t, disk = new Map(), databaseUrl) {
+  const server = await startServer(t, databaseUrl);
+  const { base } = server;
   const accounts = new Map();
   async function browser(name = 'alice', browserDisk = disk) {
     const storage = new Map();
@@ -57,7 +69,7 @@ async function setup(t, disk = new Map()) {
       const registered = await fetch(base + '/auth/register', { method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password: 'Password1' }) });
-      assert.equal(registered.status, 201);
+      assert.equal(registered.status, databaseUrl ? 409 : 201);
       accounts.set(name, true);
     }
     ctx.currentUser = await ctx.Api.login(email, 'Password1');
@@ -66,7 +78,7 @@ async function setup(t, disk = new Map()) {
     return ctx;
   }
   const ctx = await browser();
-  return { ctx, browser, disk, base };
+  return { ctx, browser, disk, ...server };
 }
 
 test('A2 queue hooks generate backend notifications and history across separate student/staff views', async t => {
@@ -141,12 +153,22 @@ test('closed joins and backend errors preserve the queue; removed visits and rel
   assert.equal(unrelated.Notifications.all().length, 0);
 });
 
-test('restarting backend resets queues together with in-memory activity', async t => {
+test('restarting backend preserves activity and reports interrupted queues', async t => {
   const first = await setup(t);
   await first.ctx.QueueStore.change(1, 'join');
-  const second = await setup(t, first.disk);
-  assert.equal(second.ctx.QueueStore.active(), null);
-  assert.equal((await second.ctx.QueueBackend.history()).length, 0);
+  const original = (await first.ctx.QueueBackend.history())[0];
+  await first.stop();
+  const second = await setup(t, first.disk, first.databaseUrl);
+  try {
+    assert.equal(second.ctx.QueueStore.active(), null);
+    const history = await second.ctx.QueueBackend.history();
+    assert.equal(history.length, 1);
+    assert.equal(history[0].id, original.id);
+    assert.equal(history[0].outcome, 'Removed');
+    assert((await second.ctx.QueueBackend.notifications()).some(n => n.kind === 'interrupted'));
+    await second.ctx.QueueStore.change(1, 'join');
+    assert.equal((await second.ctx.QueueBackend.history()).length, 2);
+  } finally { await second.stop(); }
 });
 
 test('login errors are readable and invalid tokens clear the browser session', async t => {

@@ -21,4 +21,4 @@ Example of a table module (app/tables/example.py):
         owner_id: Mapped[str] = mapped_column(ForeignKey("user_credentials.id", ondelete="CASCADE"))
 """
 
-from app.tables import credentials, profile, service  # noqa: E402,F401
+from app.tables import credentials, profile, service, activity  # noqa: E402,F401

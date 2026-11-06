@@ -1,4 +1,4 @@
-"""Keep queue state and modules 5/6 in one atomic in-memory change."""
+"""Commit durable activity and restore in-memory queue state if the transaction fails."""
 from contextlib import contextmanager
 from copy import deepcopy
 
@@ -9,18 +9,35 @@ from app.store import db
 @contextmanager
 def transaction():
     with db.activity.lock:
-        previous = deepcopy((db.queues, db.services, db._next_service_id, db._next_queue_entry_id,
-                             db.activity.history.records, db.activity.notifications.items))
+        previous = deepcopy((db.queues, db.services, db._next_service_id, db._next_queue_entry_id))
         try:
-            yield
+            with db.activity.transaction():
+                yield
         except Exception:
-            (db.queues, db.services, db._next_service_id, db._next_queue_entry_id,
-             db.activity.history.records, db.activity.notifications.items) = previous
+            (db.queues, db.services, db._next_service_id, db._next_queue_entry_id) = previous
             raise
 
 
+
 def visit_id(entry):
-    return f"queue-{entry.id}"
+    return f"queue-{db.activity.id}-{entry.id}"
+
+
+def recover_interrupted_visits():
+    """Until queues are persisted, close visits whose queue entries were lost on restart.
+
+    Keep their history and explain the interruption instead of leaving users permanently
+    blocked by a Waiting visit that no longer has a corresponding queue entry.
+    """
+    with db.activity.transaction():
+        live = {visit_id(entry) for entries in db.queues.values() for entry in entries}
+        for record in db.activity.history.records.values():
+            if record["outcome"] == "Waiting" and record["id"] not in live:
+                db.activity.history.complete(record, "removed")
+                db.activity.notifications.add(
+                    record, "interrupted", f"Your visit to {record['serviceName']} ended after a server restart. "
+                    "Please join the queue again.", "warning",
+                )
 
 
 def positions(service):

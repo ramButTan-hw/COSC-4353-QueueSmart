@@ -14,5 +14,5 @@ def list_history(response: Response,
                  to_date: str | None = Query(default=None, alias="to"),
                  user: User = Depends(get_current_user)):
     response.headers["Cache-Control"] = "no-store"
-    with db.activity.lock:
+    with db.activity.transaction():
         return db.activity.history.list(user.id, from_date, to_date)

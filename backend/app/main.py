@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app import config, database
+from app import config, database, queue_activity
 from app.errors import ApiError, api_error_handler, http_error_handler, validation_error_handler
 from app.routers import auth, notifications, history, profile, queues, services
 from app.store import seed_demo_services
@@ -16,6 +16,7 @@ from app.ui import mount_ui
 async def lifespan(app: FastAPI):
     database.init_db()  # creates the tables and the demo accounts
     seed_demo_services()
+    queue_activity.recover_interrupted_visits()
     yield
 
 
