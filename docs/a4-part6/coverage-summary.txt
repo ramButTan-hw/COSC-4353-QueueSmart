@@ -1,0 +1,46 @@
+QueueSmart A4 Part 6 coverage summary
+Verified November 5, 2026
+Backend tests: 371 passed
+Frontend and API integration tests: 15 passed
+Metric: statement coverage (not branch coverage)
+
+Module                                             Statements  Missing  Coverage
+app\Wait-Time Estimation Logic.py                         100      100     0.00%
+app\__init__.py                                             0        0   100.00%
+app\activity\__init__.py                                    2        0   100.00%
+app\activity\history.py                                    53        0   100.00%
+app\activity\notifications.py                              45        0   100.00%
+app\activity\persistence.py                                58        0   100.00%
+app\activity\schemas.py                                    19        0   100.00%
+app\activity\service.py                                    42        0   100.00%
+app\config.py                                              12        0   100.00%
+app\database.py                                            68        0   100.00%
+app\deps.py                                                20        0   100.00%
+app\errors.py                                              54        0   100.00%
+app\main.py                                                34        0   100.00%
+app\models.py                                               9        0   100.00%
+app\queue_activity.py                                      49        0   100.00%
+app\routers\__init__.py                                     0        0   100.00%
+app\routers\auth.py                                        32        0   100.00%
+app\routers\history.py                                     10        0   100.00%
+app\routers\notifications.py                               24        0   100.00%
+app\routers\profile.py                                     22        0   100.00%
+app\routers\queues.py                                     133        2    98.50%
+app\routers\services.py                                    46        0   100.00%
+app\schemas.py                                             81        0   100.00%
+app\security.py                                            23        0   100.00%
+app\store.py                                               75        8    89.33%
+app\tables\__init__.py                                      1        0   100.00%
+app\tables\activity.py                                     31        0   100.00%
+app\tables\credentials.py                                  16        0   100.00%
+app\tables\profile.py                                      16        0   100.00%
+app\tables\service.py                                      32        5    84.38%
+app\ui.py                                                  15        0   100.00%
+app\users.py                                               52        0   100.00%
+app\wait_time.py                                            4        0   100.00%
+
+TOTAL: 1063 / 1178 statements = 90.24%
+Required gate: 80%; PASS
+
+Command: pytest -q --cov=app --cov-report=term-missing --cov-report=html --cov-report=json:coverage.json --cov-fail-under=80
+Source: backend/coverage.json from the successful full test run.

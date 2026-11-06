@@ -163,13 +163,13 @@ def join_queue(
             if item.id == entry.id
         )
 
-        queue_activity.joined(service, entry)
-
         queue_database.add_entry(
             service,
             entry,
             position,
         )
+
+        queue_activity.joined(service, entry)
 
         queue_database.sync_positions(
             service.id,
