@@ -1,0 +1,11 @@
+# Local environments, databases, and generated test reports
+backend/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/pytest-cache-files-*/
+backend/.test-tmp/
+backend/*.db
+backend/*.db-*
+backend/.coverage*
+backend/coverage.json
+backend/htmlcov/

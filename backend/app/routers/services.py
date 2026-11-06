@@ -10,6 +10,7 @@ from app.errors import ApiError
 from app.models import Service, User
 from app.schemas import ServiceIn, ServiceOut, ServiceUpdate
 from app.store import db
+from app import queue_database
 from app.queue_activity import transaction
 
 router = APIRouter(prefix="/services", tags=["services"])
@@ -61,6 +62,7 @@ def update_service(service_id: int, body: ServiceUpdate, user: User = Depends(re
             _check_name_free(changes["name"], except_id=service.id)
         for field, value in changes.items():
             setattr(service, field, value)
+        queue_database.set_queue_status(service)
         return _out(service)
 
 

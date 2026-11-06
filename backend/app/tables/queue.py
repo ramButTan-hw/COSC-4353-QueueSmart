@@ -96,3 +96,6 @@ class QueueEntryTable(Base):
         nullable=False,
         default="waiting",
     )
+    # Nullable for databases created before queue/history integration. Startup backfills these.
+    participation_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    priority: Mapped[str | None] = mapped_column(String(6), nullable=True)
