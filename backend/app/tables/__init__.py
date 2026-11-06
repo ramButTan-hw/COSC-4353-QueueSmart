@@ -22,3 +22,4 @@ Example of a table module (app/tables/example.py):
 """
 
 from app.tables import credentials, profile  # noqa: E402,F401
+from app.tables import service  # noqa: E402,F401
