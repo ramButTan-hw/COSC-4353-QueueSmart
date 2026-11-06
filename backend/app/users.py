@@ -72,22 +72,22 @@ def update_profile(session: Session, user_id: str, changes: dict) -> UserProfile
 # ---- standalone versions (their own short session) ----
 
 def lookup(user_id: str) -> User | None:
-    with database.SessionLocal() as session:
+    with database.session_scope() as session:
         return find_by_id(session, user_id)
 
 
 def lookup_by_email(email: str) -> User | None:
-    with database.SessionLocal() as session:
+    with database.session_scope() as session:
         return find_by_email(session, email)
 
 
 def lookup_staff_ids() -> list[str]:
-    with database.SessionLocal() as session:
+    with database.session_scope() as session:
         return staff_ids(session)
 
 
 def save(user: User, phone: str | None = None, preferences: str | None = None) -> User:
-    with database.SessionLocal() as session:
+    with database.session_scope() as session:
         create_user(session, user, phone, preferences)
         database.commit(session, "An account with this email already exists.")
     return user

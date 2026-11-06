@@ -17,6 +17,8 @@ The connection comes from config.DATABASE_URL (env var DATABASE_URL). Always use
 configure() swaps them.
 """
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from sqlalchemy import MetaData, create_engine, event
 from sqlalchemy.engine import Engine, make_url
@@ -71,6 +73,25 @@ def make_engine(url: str | None = None) -> Engine:
 
 engine = make_engine()
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+active_session: ContextVar[Session | None] = ContextVar("active_session", default=None)
+
+
+@contextmanager
+def session_scope(*, write=False):
+    """Reuse the event transaction for nested helpers; only its owner may commit."""
+    current = active_session.get()
+    if current is not None:
+        yield current
+        return
+    with SessionLocal() as session:
+        token = active_session.set(session)
+        try:
+            yield session
+            if write:
+                commit(session)
+        finally:
+            active_session.reset(token)
+
 
 
 def configure(url: str | None = None) -> Engine:
@@ -120,6 +141,8 @@ def init_db() -> None:
     """Create any missing tables, then run the seeders. Called once at application startup."""
     _load_tables()
     Base.metadata.create_all(engine)
+    from app.queue_database import upgrade_queue_columns
+    upgrade_queue_columns()
     with SessionLocal() as session:
         for seed in SEEDERS:
             seed(session)

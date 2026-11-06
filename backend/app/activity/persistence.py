@@ -58,7 +58,7 @@ class PersistentActivity(Activity):
             if self._in_transaction:
                 yield
                 return
-            with database.SessionLocal() as session:
+            with database.session_scope() as session:
                 histories = list(session.scalars(select(HistoryRecord).order_by(HistoryRecord.sequence)))
                 notices = list(session.scalars(select(NotificationRecord).order_by(NotificationRecord.sequence)))
                 self.history.records = {row.id: unpack(row, HISTORY_FIELDS) for row in histories}

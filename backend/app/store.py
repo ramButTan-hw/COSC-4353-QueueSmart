@@ -1,6 +1,6 @@
-"""Shared runtime store. Services and queues remain in memory pending their A4 integration.
+"""Shared runtime cache, restored from persisted services and queues at startup.
 
-Accounts and activity are database-backed. reset() clears runtime caches, not SQL rows;
+Accounts, services, queues and activity are database-backed. reset() clears runtime caches, not SQL rows;
 use database.reset_database() only when a test explicitly needs an empty database.
 """
 
@@ -56,16 +56,16 @@ class Store:
         priority: str,
         open: bool = False,
     ) -> Service:
-        service = Service(
-            self._next_service_id,
-            name,
-            description,
-            duration,
-            priority,
-            open,
-        )
+        from app import database
+        from app.tables.service import ServiceTable, to_service
+        with database.session_scope(write=True) as session:
+            row = ServiceTable(name=name, description=description, duration=duration,
+                               priority=priority, is_open=open)
+            session.add(row)
+            session.flush()
+            service = to_service(row)
+        self._next_service_id = max(self._next_service_id, service.id + 1)
 
-        self._next_service_id += 1
         self.services[service.id] = service
 
         return service
@@ -98,6 +98,14 @@ class Store:
             for hook in list(self.service_deleted_hooks):
                 hook(service)
 
+        if service is not None:
+            from app import database
+            from app.tables.service import ServiceTable
+            with database.session_scope(write=True) as session:
+                row = session.get(ServiceTable, service_id)
+                if row is not None:
+                    session.delete(row)  # foreign keys cascade queue rows and entries
+                    session.flush()
         return service
 
     # --- queues ---

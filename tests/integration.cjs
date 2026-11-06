@@ -153,19 +153,20 @@ test('closed joins and backend errors preserve the queue; removed visits and rel
   assert.equal(unrelated.Notifications.all().length, 0);
 });
 
-test('restarting backend preserves activity and reports interrupted queues', async t => {
+test('restarting backend restores the queue and preserves activity', async t => {
   const first = await setup(t);
   await first.ctx.QueueStore.change(1, 'join');
   const original = (await first.ctx.QueueBackend.history())[0];
   await first.stop();
   const second = await setup(t, first.disk, first.databaseUrl);
   try {
-    assert.equal(second.ctx.QueueStore.active(), null);
+    assert.equal(second.ctx.QueueStore.active().index, 0);
     const history = await second.ctx.QueueBackend.history();
     assert.equal(history.length, 1);
     assert.equal(history[0].id, original.id);
-    assert.equal(history[0].outcome, 'Removed');
-    assert((await second.ctx.QueueBackend.notifications()).some(n => n.kind === 'interrupted'));
+    assert.equal(history[0].outcome, 'Waiting');
+    assert(!(await second.ctx.QueueBackend.notifications()).some(n => n.kind === 'interrupted'));
+    await second.ctx.QueueStore.change(1, 'leave');
     await second.ctx.QueueStore.change(1, 'join');
     assert.equal((await second.ctx.QueueBackend.history()).length, 2);
   } finally { await second.stop(); }

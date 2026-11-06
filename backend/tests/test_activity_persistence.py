@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 
-from app import database, queue_activity
+from app import database, queue_activity, queue_database
 from app.activity.persistence import PersistentActivity
 from app.errors import ApiError
 from app.main import create_app
@@ -91,20 +91,20 @@ def test_file_database_survives_engine_and_store_restart(tmp_path):
         database.reset_database()
 
 
-def test_restart_recovers_orphan_waiting_visits_once(client, actors):
+def test_restart_restores_waiting_visits_without_interruptions(client, actors):
     join(client, actors)
+    before = snapshot()
     db.reset()
-    seed_demo_services()
+    queue_database.restore_store()
     queue_activity.recover_interrupted_visits()
-    first = snapshot()
-    assert first[0][0]["outcome"] == "Removed"
-    assert first[1][0]["kind"] == "interrupted"
-    queue_activity.recover_interrupted_visits()
-    assert snapshot() == first
+    assert snapshot() == before
+    assert len(db.get_queue(1)) == 1
+    assert client.post("/queues/1/join", headers=actors["alice"]).status_code == 409
+    assert client.delete("/queues/1/leave", headers=actors["alice"]).status_code == 204
     join(client, actors)
     assert len(snapshot()[0]) == 2
     queue_activity.recover_interrupted_visits()
-    assert snapshot()[0][0]["outcome"] == "Waiting"  # a live queue is not interrupted
+    assert snapshot()[0][0]["outcome"] == "Waiting"
 
 
 def test_error_after_history_flush_rolls_back_database_and_queue(client, actors, monkeypatch):

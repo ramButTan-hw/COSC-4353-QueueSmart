@@ -20,11 +20,11 @@ def transaction():
 
 
 def visit_id(entry):
-    return f"queue-{db.activity.id}-{entry.id}"
+    return entry.participation_id or f"queue-{db.activity.id}-{entry.id}"
 
 
 def recover_interrupted_visits():
-    """Until queues are persisted, close visits whose queue entries were lost on restart.
+    """Close orphaned history after persisted queue entries have been restored.
 
     Keep their history and explain the interruption instead of leaving users permanently
     blocked by a Waiting visit that no longer has a corresponding queue entry.

@@ -29,3 +29,4 @@ class QueueEntry:
     priority: str
     joined_at: float
     order: float | None = None  # Staff ordering within a priority tier; arrival time is retained.
+    participation_id: str | None = None  # Stable across server restarts.
