@@ -2,14 +2,14 @@
 import uuid
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
-from app import config
+from app import config, database, users
 from app.deps import get_current_user
 from app.errors import ApiError
 from app.models import User
 from app.schemas import LoginRequest, RegisterRequest, TokenOut, UserOut
 from app.security import DUMMY_HASH, create_access_token, hash_password, verify_password
-from app.store import db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -18,20 +18,24 @@ def _public(user: User) -> UserOut:
     return UserOut(id=user.id, name=user.name, email=user.email, role=user.role)
 
 
+EMAIL_TAKEN = "An account with this email already exists."
+
+
 @router.post("/register", response_model=UserOut, status_code=201)
-def register(body: RegisterRequest):
-    if db.get_user_by_email(body.email) is not None:
-        raise ApiError(409, "conflict", "An account with this email already exists.",
-                       fields={"email": "An account with this email already exists."})
-    # Registration only assign role = student
+def register(body: RegisterRequest, session: Session = Depends(database.get_session)):
+    if users.find_by_email(session, body.email) is not None:
+        raise ApiError(409, "conflict", EMAIL_TAKEN, fields={"email": EMAIL_TAKEN})
+    # Registration only ever creates students; the account and its profile are saved together.
     user = User(str(uuid.uuid4()), body.name, body.email, hash_password(body.password), config.ROLE_STUDENT)
-    db.add_user(user)
+    users.create_user(session, user, phone=body.phone, preferences=body.preferences)
+    # The unique constraint also catches two sign-ups racing for the same email.
+    database.commit(session, EMAIL_TAKEN, {"email": EMAIL_TAKEN})
     return _public(user)
 
 
 @router.post("/login", response_model=TokenOut)
-def login(body: LoginRequest):
-    user = db.get_user_by_email(body.email)
+def login(body: LoginRequest, session: Session = Depends(database.get_session)):
+    user = users.find_by_email(session, body.email)
     password_ok = verify_password(body.password, user.password_hash if user else DUMMY_HASH)
     if user is None or not password_ok:
         raise ApiError(401, "unauthorized", "Incorrect email or password.", headers={"WWW-Authenticate": "Bearer"})

@@ -11,9 +11,8 @@ JWT_SECRET = os.environ.get("JWT_SECRET", "dev-only-secret-change-me-before-real
 JWT_ALGORITHM = "HS256"
 TOKEN_TTL_SECONDS = int(os.environ.get("JWT_EXPIRES_MINUTES", "60")) * 60
 
-# Where the database lives. Any SQLAlchemy URL works, for example
-#   sqlite:///queuesmart.db                          (default: a file in backend/, nothing to install)
-#   postgresql+psycopg://user:password@localhost/queuesmart   (needs: uv sync --extra postgres)
+# Where the database lives: a SQLite file in backend/ by default (nothing to install). Set DATABASE_URL to use
+# a different SQLite file, for example sqlite:///other.db.
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{BACKEND_DIR / 'queuesmart.db'}")
 

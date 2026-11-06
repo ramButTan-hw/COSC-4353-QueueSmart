@@ -10,22 +10,25 @@ Other modules should not parse tokens themselves.
 """
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
 
-from app import config
+from app import config, database, users
 from app.errors import ApiError
 from app.models import User
 from app.security import decode_access_token
-from app.store import db
 
 _bearer = HTTPBearer(auto_error=False, description="JWT from POST /auth/login")
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(_bearer)) -> User:
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    session: Session = Depends(database.get_session),
+) -> User:
     if credentials is None:
         raise ApiError(401, "unauthorized", "Authentication required.", headers={"WWW-Authenticate": "Bearer"})
     claims = decode_access_token(credentials.credentials)
-    user = db.get_user(claims["sub"])
-    if user is None:  # e.g. the server restarted and in-memory accounts are gone
+    user = users.find_by_id(session, claims["sub"])
+    if user is None:  # a valid token for an account that no longer exists
         raise ApiError(401, "unauthorized", "Invalid authentication token.", headers={"WWW-Authenticate": "Bearer"})
     return user
 
