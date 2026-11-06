@@ -46,7 +46,7 @@ def session():
 def test_default_database_is_a_sqlite_file_in_the_backend_folder():
     assert config.DATABASE_URL.startswith("sqlite:///") or "DATABASE_URL" in __import__("os").environ
     default = f"sqlite:///{Path(config.__file__).resolve().parents[1] / 'queuesmart.db'}"
-    assert default.endswith("backend/queuesmart.db")
+    assert default.replace("\\", "/").endswith("backend/queuesmart.db")
 
 
 def test_tests_use_an_in_memory_database_not_the_real_file():
